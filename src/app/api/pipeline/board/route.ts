@@ -45,6 +45,7 @@ export const GET = withAuth(async (session) => {
       name: s.name,
       position: s.position,
       kind: s.kind,
+      reportsToMetaAds: s.reportsToMetaAds,
     })),
     leads: leads.map((r) => ({
       id: r.lead.id,

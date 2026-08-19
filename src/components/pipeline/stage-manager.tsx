@@ -54,11 +54,15 @@ export function StageManager({
   }
 
   async function toggleMetaAds(stage: StageDto) {
-    await fetch(`/api/pipeline/stages/${stage.id}`, {
+    const res = await fetch(`/api/pipeline/stages/${stage.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ reportsToMetaAds: !stage.reportsToMetaAds }),
     }).catch(() => null);
+    if (!res?.ok) {
+      setError("No se pudo actualizar el reporte a Meta Ads");
+      return;
+    }
     onChanged();
   }
 
