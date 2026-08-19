@@ -26,6 +26,17 @@ const schema = z
     caption: z.string().optional(),
     filename: z.string().optional(),
     location: z.record(z.unknown()).optional(),
+    // 021 — simula que el lead llegó tocando un anuncio de Meta Ads
+    referral: z
+      .object({
+        sourceId: z.string().optional(),
+        sourceType: z.string().optional(),
+        sourceUrl: z.string().optional(),
+        headline: z.string().optional(),
+        body: z.string().optional(),
+        ctwaClid: z.string().optional(),
+      })
+      .optional(),
   })
   .refine((v) => v.from || v.fromUserId, {
     message: "Se requiere from o fromUserId",

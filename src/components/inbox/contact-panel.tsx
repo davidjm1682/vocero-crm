@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, Sparkles, UserRound } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  Megaphone,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import type {
   ConversationDto,
   FichaDto,
@@ -45,6 +51,9 @@ export function ContactPanel({
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currentStageId, setCurrentStageId] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [ad, setAd] = useState<{ headline: string | null; sourceId: string | null } | null>(
+    null
+  );
   // Estado global del agente: sin esto, el toggle "Respondiendo" mentiría
   // cuando el agente aún no se ha configurado/encendido.
   const [agentEnabled, setAgentEnabled] = useState(false);
@@ -70,6 +79,7 @@ export function ContactPanel({
       setFicha(detail.contact?.ficha ?? {});
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
+      setAd(detail.contact?.ad ?? null);
     }
     if (stagesRes) setStages(stagesRes.stages);
     setAgentEnabled(Boolean(agentRes?.profile?.enabled));
@@ -182,6 +192,22 @@ export function ContactPanel({
               </p>
             </div>
           </div>
+
+          {ad && (
+            <div className="mt-3 rounded-md border bg-secondary/50 px-3 py-2.5">
+              <p className="flex items-center gap-1.5 text-[13px] font-medium">
+                <Megaphone className="h-4 w-4" strokeWidth={1.7} /> Vino de un anuncio
+              </p>
+              {ad.headline && (
+                <p className="mt-1 truncate text-xs text-text-3">{ad.headline}</p>
+              )}
+              {ad.sourceId && (
+                <p className="mt-0.5 text-[11px] text-text-3 opacity-70">
+                  ID de anuncio: {ad.sourceId}
+                </p>
+              )}
+            </div>
+          )}
 
           {conversation.handoffAt && (
             <div className="mt-3 rounded-md border border-warning-soft bg-warning-tint p-3">

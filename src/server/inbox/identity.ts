@@ -2,7 +2,11 @@ import { and, eq, or } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { normalizeMx } from "@/lib/meta/client";
-import type { WebhookMessage, WebhookValue } from "@/server/inbox/webhook";
+import type {
+  WebhookMessage,
+  WebhookReferral,
+  WebhookValue,
+} from "@/server/inbox/webhook";
 
 /**
  * Identidad resiliente de contacto (003).
@@ -22,6 +26,8 @@ export type ResolvedIdentity = {
   phone: string | null;
   waUserId: string | null;
   profileName: string | null;
+  /** Solo presente si el mensaje trae `referral` (021 — vino de un anuncio). */
+  referral?: WebhookReferral | null;
 };
 
 /**
@@ -47,9 +53,11 @@ export function resolveIdentity(
       : undefined) ??
     null;
 
+  const referral = msg.referral ?? null;
+
   if (msg.from) {
     const phone = normalizeMx(msg.from);
-    return { identity: phone, phone, waUserId, profileName };
+    return { identity: phone, phone, waUserId, profileName, referral };
   }
   if (waUserId) {
     return {
@@ -57,6 +65,7 @@ export function resolveIdentity(
       phone: null,
       waUserId,
       profileName,
+      referral,
     };
   }
   return null;
@@ -121,6 +130,12 @@ export async function getOrCreateContactByIdentity(
       phone: resolved.phone,
       waUserId: resolved.waUserId,
       name: resolved.profileName?.trim() || displayFallback(resolved),
+      adSourceId: resolved.referral?.source_id ?? null,
+      adSourceType: resolved.referral?.source_type ?? null,
+      adSourceUrl: resolved.referral?.source_url ?? null,
+      adHeadline: resolved.referral?.headline ?? null,
+      adBody: resolved.referral?.body ?? null,
+      adCtwaClid: resolved.referral?.ctwa_clid ?? null,
     })
     .onConflictDoNothing({
       target: [schema.contact.organizationId, schema.contact.waIdentity],

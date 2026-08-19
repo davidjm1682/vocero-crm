@@ -85,3 +85,28 @@ describe("resolveIdentity: sin wa_id (mundo BSUID)", () => {
     expect(r!.profileName).toBeNull();
   });
 });
+
+describe("resolveIdentity: referral de anuncio (021 — click-to-WhatsApp)", () => {
+  it("captura el referral cuando el primer mensaje viene de un anuncio", () => {
+    const r = resolveIdentity(
+      msg({
+        from: "5214621349768",
+        referral: {
+          source_id: "120210000000000",
+          source_type: "ad",
+          source_url: "https://fb.me/xyz",
+          headline: "Agenda tu consulta gratis",
+          body: "Escríbenos por WhatsApp",
+        },
+      }),
+      []
+    );
+    expect(r!.referral?.source_id).toBe("120210000000000");
+    expect(r!.referral?.headline).toBe("Agenda tu consulta gratis");
+  });
+
+  it("sin referral en el mensaje → referral null (mensaje orgánico)", () => {
+    const r = resolveIdentity(msg({ from: "5214621349768" }), []);
+    expect(r!.referral).toBeNull();
+  });
+});

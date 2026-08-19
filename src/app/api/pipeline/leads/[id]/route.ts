@@ -4,7 +4,10 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
-import { moveLeadToStage } from "@/server/leads/stage-history";
+import {
+  moveLeadToStage,
+  notifyMetaAdsIfNeeded,
+} from "@/server/leads/stage-history";
 import { getBranding } from "@/server/branding";
 
 export const dynamic = "force-dynamic";
@@ -123,6 +126,11 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
       "Falta el motivo de la pérdida"
     );
   }
+
+  notifyMetaAdsIfNeeded(res, {
+    organizationId: session.organizationId,
+    contactId: res.lead.contactId,
+  });
 
   const db = getDb();
   // Notifica a la bandeja para que la etapa se refleje en vivo (panel de

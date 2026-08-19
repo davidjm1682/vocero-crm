@@ -13,6 +13,8 @@ const prefixes = {
   stage: "stg",
   leadStageEvent: "lse",
   credentials: "cred",
+  metaAdsCredentials: "adcred",
+  metaConversionEvent: "advev",
   agentProfile: "agp",
   kbEntry: "kb",
   template: "tpl",

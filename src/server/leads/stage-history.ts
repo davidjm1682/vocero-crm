@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import type { LossReason, StageChangeSource } from "@/lib/types";
+import { reportQualifiedLead } from "@/server/ads/conversions";
 
 /**
  * La ÚNICA puerta que escribe `lead.stage_id`.
@@ -22,7 +23,7 @@ import type { LossReason, StageChangeSource } from "@/lib/types";
 type LeadRow = typeof schema.lead.$inferSelect;
 
 export type MoveResult =
-  | { ok: true; lead: LeadRow; changed: boolean }
+  | { ok: true; lead: LeadRow; changed: boolean; reportsToMetaAds: boolean }
   | {
       ok: false;
       reason: "lead_not_found" | "stage_not_found" | "loss_reason_required";
@@ -137,7 +138,33 @@ export async function moveLeadToStage(input: MoveInput): Promise<MoveResult> {
       });
     }
 
-    return { ok: true as const, lead: leadRow, changed };
+    return {
+      ok: true as const,
+      lead: leadRow,
+      changed,
+      reportsToMetaAds: changed && target.reportsToMetaAds,
+    };
+  });
+}
+
+/**
+ * 021 — dispara el reporte a Meta Ads FUERA de la transacción del movimiento
+ * (es una llamada de red; jamás debe poder bloquear ni deshacer un cambio de
+ * etapa ya confirmado). Se llama después de `moveLeadToStage` cuando
+ * `reportsToMetaAds` viene true.
+ */
+export function notifyMetaAdsIfNeeded(
+  result: Awaited<ReturnType<typeof moveLeadToStage>>,
+  input: { organizationId: string; contactId: string; occurredAt?: Date }
+): void {
+  if (!result.ok || !result.reportsToMetaAds) return;
+  void reportQualifiedLead({
+    organizationId: input.organizationId,
+    leadId: result.lead.id,
+    contactId: input.contactId,
+    occurredAt: input.occurredAt ?? new Date(),
+  }).catch((err) => {
+    console.error("[meta-ads] fallo inesperado reportando conversión:", err);
   });
 }
 
