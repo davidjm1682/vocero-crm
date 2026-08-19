@@ -2,7 +2,10 @@ import { asc, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import { moveLeadToStage as moveLeadThroughHistory } from "@/server/leads/stage-history";
+import {
+  moveLeadToStage as moveLeadThroughHistory,
+  notifyMetaAdsIfNeeded,
+} from "@/server/leads/stage-history";
 import { getEnv, isAiConfigured } from "@/lib/env";
 import { chatJson, type ChatMessage } from "@/lib/ai";
 import { publish } from "@/server/events/bus";
@@ -299,7 +302,7 @@ async function moveLeadToStage(
   // Por la puerta única: el agente mueve tarjetas igual que el dueño, y su
   // movimiento tiene que quedar en la bitácora o el embudo mentirá sobre
   // quién hizo avanzar cada lead.
-  await moveLeadThroughHistory({
+  const res = await moveLeadThroughHistory({
     organizationId,
     leadId,
     toStageId: stageId,
@@ -309,6 +312,7 @@ async function moveLeadToStage(
     // perdida, la puerta lo rechaza y el lead se queda donde está — mejor eso
     // que un motivo inventado.
   });
+  notifyMetaAdsIfNeeded(res, { organizationId, contactId });
 }
 
 async function appendLeadNote(

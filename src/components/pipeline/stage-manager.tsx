@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Megaphone, Trash2 } from "lucide-react";
 import type { StageDto } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 /** Gestión de etapas: renombrar, reordenar, agregar, eliminar (con reasignación). */
 export function StageManager({
@@ -49,6 +50,15 @@ export function StageManager({
         body: JSON.stringify({ position: stage.position }),
       }),
     ]).catch(() => null);
+    onChanged();
+  }
+
+  async function toggleMetaAds(stage: StageDto) {
+    await fetch(`/api/pipeline/stages/${stage.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reportsToMetaAds: !stage.reportsToMetaAds }),
+    }).catch(() => null);
     onChanged();
   }
 
@@ -100,44 +110,63 @@ export function StageManager({
         <h3 className="mb-4 font-semibold">Etapas del pipeline</h3>
         <ul className="space-y-2">
           {sorted.map((s, i) => (
-            <li key={s.id} className="flex items-center gap-2">
-              <Input
-                defaultValue={s.name}
-                onBlur={(e) => void rename(s, e.target.value)}
-                className="flex-1"
-              />
-              {s.kind !== "open" ? (
-                <Badge variant={s.kind === "won" ? "success" : "secondary"}>
-                  {s.kind === "won" ? "ganado" : "perdido"}
-                </Badge>
-              ) : (
+            <li key={s.id} className="rounded-md border border-transparent">
+              <div className="flex items-center gap-2">
+                <Input
+                  defaultValue={s.name}
+                  onBlur={(e) => void rename(s, e.target.value)}
+                  className="flex-1"
+                />
+                {s.kind !== "open" ? (
+                  <Badge variant={s.kind === "won" ? "success" : "secondary"}>
+                    {s.kind === "won" ? "ganado" : "perdido"}
+                  </Badge>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Eliminar etapa"
+                    onClick={() => void remove(s, null)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="Eliminar etapa"
-                  onClick={() => void remove(s, null)}
+                  disabled={i === 0}
+                  aria-label="Subir"
+                  onClick={() => void move(s, -1)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <ArrowUp className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={i === sorted.length - 1}
+                  aria-label="Bajar"
+                  onClick={() => void move(s, 1)}
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </Button>
+              </div>
+              {s.kind === "open" && (
+                <button
+                  type="button"
+                  onClick={() => void toggleMetaAds(s)}
+                  className={cn(
+                    "mt-1.5 flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors",
+                    s.reportsToMetaAds
+                      ? "bg-brand/10 text-brand"
+                      : "text-text-3 hover:bg-secondary/50"
+                  )}
+                >
+                  <Megaphone className="h-3 w-3" strokeWidth={1.7} />
+                  {s.reportsToMetaAds
+                    ? "Reporta conversión a Meta Ads"
+                    : "Reportar a Meta Ads al entrar aquí"}
+                </button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={i === 0}
-                aria-label="Subir"
-                onClick={() => void move(s, -1)}
-              >
-                <ArrowUp className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={i === sorted.length - 1}
-                aria-label="Bajar"
-                onClick={() => void move(s, 1)}
-              >
-                <ArrowDown className="h-4 w-4" />
-              </Button>
             </li>
           ))}
         </ul>

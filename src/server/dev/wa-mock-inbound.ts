@@ -75,6 +75,15 @@ export function buildInboundPayload(input: {
   text?: string;
   waMessageId?: string;
   timestamp?: number;
+  /** 021 — simula el `referral` que Meta manda cuando el lead viene de un anuncio. */
+  referral?: {
+    sourceId?: string;
+    sourceType?: string;
+    sourceUrl?: string;
+    headline?: string;
+    body?: string;
+    ctwaClid?: string;
+  };
 } & MockMediaInput) {
   const type = input.type ?? "text";
   const message: Record<string, unknown> = {
@@ -84,6 +93,16 @@ export function buildInboundPayload(input: {
   };
   if (input.from) message.from = input.from;
   if (input.fromUserId) message.from_user_id = input.fromUserId;
+  if (input.referral) {
+    message.referral = {
+      source_id: input.referral.sourceId,
+      source_type: input.referral.sourceType,
+      source_url: input.referral.sourceUrl,
+      headline: input.referral.headline,
+      body: input.referral.body,
+      ctwa_clid: input.referral.ctwaClid,
+    };
+  }
   applyMockContent(message, type, input);
 
   const contactEntry: Record<string, unknown> = {

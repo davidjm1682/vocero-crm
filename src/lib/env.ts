@@ -22,6 +22,12 @@ const envSchema = z.object({
   META_APP_SECRET: z.string().optional(),
   META_GRAPH_API_VERSION: z.string().default("v25.0"),
   META_GRAPH_BASE_URL: z.string().url().default("https://graph.facebook.com"),
+  // 021 — Conversions API (Meta Ads). Separado de META_GRAPH_BASE_URL para
+  // poder mockearlo en self-test sin pisar el mock de WhatsApp.
+  META_ADS_GRAPH_BASE_URL: z
+    .string()
+    .url()
+    .default("https://graph.facebook.com"),
   OPENROUTER_API_TOKEN: z.string().optional(),
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api"),
   OPENROUTER_MODEL: z.string().optional(),

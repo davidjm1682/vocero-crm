@@ -58,6 +58,26 @@ export type WebhookLocation = {
   address?: string;
 };
 
+/**
+ * Presente solo en el PRIMER mensaje de una conversación "click-to-WhatsApp"
+ * (el lead tocó un anuncio de Meta Ads con botón "Enviar mensaje").
+ * `source_id` es el ad ID; se usa para atribución de campaña.
+ */
+export type WebhookReferral = {
+  source_url?: string;
+  source_id?: string;
+  source_type?: string;
+  headline?: string;
+  body?: string;
+  media_type?: string;
+  /**
+   * Click ID de Meta Ads — la llave real de atribución para Conversions API
+   * (más confiable que `source_id` solo). Sin este campo, Meta procesa el
+   * evento de conversión pero NO lo asocia al anuncio original.
+   */
+  ctwa_clid?: string;
+};
+
 export type WebhookMessage = {
   /** Teléfono del remitente. OPCIONAL desde la migración de Meta a BSUID (003). */
   from?: string;
@@ -76,6 +96,7 @@ export type WebhookMessage = {
   sticker?: WebhookMediaPayload;
   location?: WebhookLocation;
   contacts?: unknown[];
+  referral?: WebhookReferral;
 };
 
 export type WebhookStatus = {

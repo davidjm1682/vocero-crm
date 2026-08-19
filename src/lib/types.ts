@@ -66,6 +66,8 @@ export type StageDto = {
   name: string;
   position: number;
   kind: "open" | "won" | "lost";
+  /** 021 — al entrar un lead aquí, se reporta como conversión a Meta Ads. */
+  reportsToMetaAds: boolean;
 };
 
 /** Un dato de la ficha. Escalar a propósito: ver `server/bot/ficha`. */

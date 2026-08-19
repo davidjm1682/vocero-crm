@@ -140,6 +140,19 @@ export const contact = pgTable(
     source: text("source", {
       enum: ["anuncio", "organico", "referido", "conocido", "otro"],
     }),
+    /**
+     * Origen "click-to-WhatsApp" (Meta Ads) del PRIMER mensaje del contacto
+     * — el detalle de CUÁL anuncio, cuando `source = "anuncio"`. Meta lo
+     * manda una sola vez, en `messages[].referral`, al llegar tocando un
+     * anuncio. Se guarda tal cual llega; nunca se sobre-escribe (021).
+     */
+    adSourceId: text("ad_source_id"),
+    adSourceType: text("ad_source_type"),
+    adSourceUrl: text("ad_source_url"),
+    adHeadline: text("ad_headline"),
+    adBody: text("ad_body"),
+    /** Click ID de Meta Ads — se manda a Conversions API para atribuir. */
+    adCtwaClid: text("ad_ctwa_clid"),
     archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -148,6 +161,7 @@ export const contact = pgTable(
     uniqueIndex("contact_org_wa_identity_uq").on(t.organizationId, t.waIdentity),
     index("contact_org_wa_user_id_idx").on(t.organizationId, t.waUserId),
     index("contact_org_name_idx").on(t.organizationId, t.name),
+    index("contact_org_ad_source_idx").on(t.organizationId, t.adSourceId),
   ]
 );
 
@@ -164,6 +178,12 @@ export const pipelineStage = pgTable(
     kind: text("kind", { enum: ["open", "won", "lost"] })
       .notNull()
       .default("open"),
+    /**
+     * 021 — al ENTRAR un lead a esta etapa, se reporta una conversión a Meta
+     * Conversions API (si hay credenciales conectadas). Pensada para la etapa
+     * que cada negocio use como "calificado" (ej. "Reunión agendada").
+     */
+    reportsToMetaAds: boolean("reports_to_meta_ads").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("stage_org_pos_idx").on(t.organizationId, t.position)]
@@ -457,6 +477,33 @@ export const metaCredentials = pgTable(
     // El webhook enruta por phone_number_id: debe ser único en la instancia.
     uniqueIndex("meta_credentials_phone_uq").on(t.phoneNumberId),
   ]
+);
+
+/**
+ * Credenciales de Meta Conversions API (021 — atribución de campañas).
+ * Independiente de `meta_credentials` (esa es WhatsApp): esta es para
+ * reportar conversiones offline a un Pixel/Dataset de Meta Ads. Mismo
+ * cifrado en reposo que el token de WhatsApp (constitución I).
+ */
+export const metaAdsCredentials = pgTable(
+  "meta_ads_credentials",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Pixel ID o Dataset ID de Meta Ads. */
+    datasetId: text("dataset_id").notNull(),
+    tokenCipher: text("token_cipher").notNull(),
+    tokenIv: text("token_iv").notNull(),
+    tokenTag: text("token_tag").notNull(),
+    status: text("status", { enum: ["connected", "reconnect_required"] })
+      .notNull()
+      .default("connected"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("meta_ads_credentials_org_uq").on(t.organizationId)]
 );
 
 export const agentProfile = pgTable(
