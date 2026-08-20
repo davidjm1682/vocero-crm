@@ -159,9 +159,9 @@ export function StageManager({
                   type="button"
                   onClick={() => void toggleMetaAds(s)}
                   className={cn(
-                    "mt-1.5 flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors",
+                    "mt-1.5 flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
                     s.reportsToMetaAds
-                      ? "bg-brand/10 text-brand"
+                      ? "bg-success text-white shadow-sm"
                       : "text-text-3 hover:bg-secondary/50"
                   )}
                 >
