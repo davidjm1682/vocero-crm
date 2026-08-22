@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ type Connection = {
   tokenLast4: string;
 };
 
+type ModelOption = { id: string; name: string };
+
 /**
  * 023 — Conecta el proveedor de IA (OpenRouter-compatible) que usan el
  * agente in-process del CRM y el Laboratorio. Sin esta conexión, ambos caen
@@ -28,6 +30,7 @@ type Connection = {
 export function AiProviderConnect() {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [models, setModels] = useState<ModelOption[]>([]);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/settings/ai-provider").then((r) =>
@@ -40,6 +43,13 @@ export function AiProviderConnect() {
   useEffect(() => {
     void refetch();
   }, [refetch]);
+
+  useEffect(() => {
+    fetch("/api/settings/ai-provider/models")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((res) => setModels(res?.models ?? []))
+      .catch(() => setModels([]));
+  }, []);
 
   if (!loaded) {
     return <p className="text-sm text-muted-foreground">Cargando…</p>;
@@ -81,16 +91,22 @@ export function AiProviderConnect() {
         </div>
       )}
 
-      <ConnectForm existing={connection} onSaved={() => void refetch()} />
+      <ConnectForm
+        existing={connection}
+        models={models}
+        onSaved={() => void refetch()}
+      />
     </div>
   );
 }
 
 function ConnectForm({
   existing,
+  models,
   onSaved,
 }: {
   existing: Connection | null;
+  models: ModelOption[];
   onSaved: () => void;
 }) {
   const [token, setToken] = useState("");
@@ -182,20 +198,22 @@ function ConnectForm({
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ai-model">Modelo</Label>
-            <Input
+            <ModelPicker
               id="ai-model"
-              placeholder="anthropic/claude-sonnet-4.5"
+              models={models}
               value={model}
-              onChange={(e) => setModel(e.target.value)}
+              onChange={setModel}
+              placeholder="Busca un modelo…"
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ai-judge-model">Modelo del juez (opcional)</Label>
-            <Input
+            <ModelPicker
               id="ai-judge-model"
-              placeholder="anthropic/claude-haiku-4.5"
+              models={models}
               value={judgeModel}
-              onChange={(e) => setJudgeModel(e.target.value)}
+              onChange={setJudgeModel}
+              placeholder="Igual al de arriba"
             />
             <p className="text-xs text-muted-foreground">
               Solo lo usa el Laboratorio para calificar; vacío = usa el mismo
@@ -223,5 +241,82 @@ function ConnectForm({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ModelPicker({
+  id,
+  models,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  models: ModelOption[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setQuery(value), [value]);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const filtered = models
+    .filter((m) => m.id.toLowerCase().includes(query.trim().toLowerCase()))
+    .slice(0, 50);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <Input
+        id={id}
+        placeholder={placeholder}
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+          {filtered.map((m) => (
+            <li key={m.id}>
+              <button
+                type="button"
+                className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setQuery(m.id);
+                  onChange(m.id);
+                  setOpen(false);
+                }}
+              >
+                <span className="font-medium">{m.id}</span>
+                {m.name !== m.id && (
+                  <span className="ml-2 text-muted-foreground">{m.name}</span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && models.length === 0 && (
+        <p className="absolute z-10 mt-1 w-full rounded-md border bg-popover p-2 text-xs text-muted-foreground shadow-md">
+          No se pudo cargar el catálogo de OpenRouter — puedes escribir el
+          identificador del modelo directamente.
+        </p>
+      )}
+    </div>
   );
 }
