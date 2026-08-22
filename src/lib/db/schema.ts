@@ -506,6 +506,32 @@ export const metaAdsCredentials = pgTable(
   (t) => [uniqueIndex("meta_ads_credentials_org_uq").on(t.organizationId)]
 );
 
+/**
+ * 023 — Proveedor de IA OpenRouter-compatible, configurable por instancia
+ * desde Settings en vez de solo por variable de entorno. Alimenta tanto el
+ * agente in-process del CRM (pipeline.ts) como el Laboratorio (judge.ts).
+ * Sin fila para la organización: se cae a OPENROUTER_API_TOKEN/MODEL de
+ * proceso (retrocompatible con instancias que ya lo configuraron así).
+ */
+export const aiProviderCredentials = pgTable(
+  "ai_provider_credentials",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    tokenCipher: text("token_cipher").notNull(),
+    tokenIv: text("token_iv").notNull(),
+    tokenTag: text("token_tag").notNull(),
+    model: text("model").notNull(),
+    /** Modelo más barato para el juez del Laboratorio; NULL = usa `model`. */
+    judgeModel: text("judge_model"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("ai_provider_credentials_org_uq").on(t.organizationId)]
+);
+
 export const agentProfile = pgTable(
   "agent_profile",
   {

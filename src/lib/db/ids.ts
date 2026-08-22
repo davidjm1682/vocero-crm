@@ -14,6 +14,7 @@ const prefixes = {
   leadStageEvent: "lse",
   credentials: "cred",
   metaAdsCredentials: "adcred",
+  aiProviderCredentials: "aicred",
   metaConversionEvent: "advev",
   agentProfile: "agp",
   kbEntry: "kb",
