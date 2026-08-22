@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "/settings/whatsapp", label: "WhatsApp" },
   { href: "/settings/meta-ads", label: "Meta Ads" },
+  { href: "/settings/ai-provider", label: "Proveedor de IA" },
   { href: "/settings/branding", label: "Marca" },
   { href: "/settings/templates", label: "Plantillas" },
   { href: "/settings/team", label: "Equipo" },

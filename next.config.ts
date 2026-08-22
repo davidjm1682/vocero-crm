@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
 
@@ -21,6 +22,10 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_BUILD_COMMIT: process.env.SOURCE_COMMIT ?? "",
   },
+  // Ancla la raíz del trazado a este proyecto: sin esto, Next.js la infiere
+  // buscando lockfiles hacia arriba y puede terminar apuntando al $HOME del
+  // usuario si hay uno suelto ahí, tracing el disco entero.
+  outputFileTracingRoot: path.join(__dirname),
 };
 
 export default nextConfig;

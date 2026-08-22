@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { getEnv, isAiConfigured } from "@/lib/env";
+import { getAiProviderCredentials } from "@/server/ai-provider/credentials";
 
 /**
  * Adaptador LLM OpenRouter-compatible — ÚNICA frontera con el proveedor de IA
@@ -23,21 +24,23 @@ const RETRY_DELAY_MS = 500;
 export async function chatJson<T>(
   schema: z.ZodType<T>,
   messages: ChatMessage[],
-  opts?: { model?: string; judge?: boolean; timeoutMs?: number }
+  opts?: {
+    model?: string;
+    judge?: boolean;
+    timeoutMs?: number;
+    organizationId?: string;
+  }
 ): Promise<ChatJsonResult<T>> {
-  if (!isAiConfigured()) {
+  const provider = await resolveProvider(opts?.organizationId);
+  if (!provider) {
     return {
       ok: false,
       error: "not_configured",
       detail: "Sin OPENROUTER_API_TOKEN configurado",
     };
   }
-  const env = getEnv();
   const model =
-    opts?.model ??
-    (opts?.judge
-      ? (env.OPENROUTER_JUDGE_MODEL ?? env.OPENROUTER_MODEL)
-      : env.OPENROUTER_MODEL);
+    opts?.model ?? (opts?.judge ? provider.judgeModel : provider.model);
   if (!model?.trim()) {
     return {
       ok: false,
@@ -60,7 +63,13 @@ export async function chatJson<T>(
             },
           ];
     try {
-      const raw = await callProvider(model, attemptMessages, opts?.timeoutMs);
+      const raw = await callProvider(
+        provider.token,
+        provider.baseUrl,
+        model,
+        attemptMessages,
+        opts?.timeoutMs
+      );
       const extracted = extractJson(raw);
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
@@ -91,20 +100,57 @@ export async function chatJson<T>(
   };
 }
 
+type ResolvedProvider = {
+  token: string;
+  baseUrl: string;
+  model: string | undefined;
+  judgeModel: string | undefined;
+};
+
+/**
+ * Credenciales por organización (Settings → Proveedor de IA) primero;
+ * variables de entorno de proceso como fallback (instancias que no migraron
+ * o que prefieren configurarlo solo en la plataforma de hosting).
+ */
+async function resolveProvider(
+  organizationId?: string
+): Promise<ResolvedProvider | null> {
+  if (organizationId) {
+    const creds = await getAiProviderCredentials(organizationId);
+    if (creds) {
+      return {
+        token: creds.token,
+        baseUrl: getEnv().OPENROUTER_BASE_URL,
+        model: creds.model,
+        judgeModel: creds.judgeModel ?? creds.model,
+      };
+    }
+  }
+  if (!isAiConfigured()) return null;
+  const env = getEnv();
+  return {
+    token: env.OPENROUTER_API_TOKEN!,
+    baseUrl: env.OPENROUTER_BASE_URL,
+    model: env.OPENROUTER_MODEL,
+    judgeModel: env.OPENROUTER_JUDGE_MODEL ?? env.OPENROUTER_MODEL,
+  };
+}
+
 async function callProvider(
+  token: string,
+  baseUrl: string,
   model: string,
   messages: ChatMessage[],
   timeoutMs = 60_000
 ): Promise<string> {
-  const env = getEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${env.OPENROUTER_BASE_URL}/v1/chat/completions`, {
+    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: {
         // El token jamás se loguea; solo viaja en este header.
-        Authorization: `Bearer ${env.OPENROUTER_API_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ model, messages }),

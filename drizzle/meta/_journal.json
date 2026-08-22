@@ -71,6 +71,13 @@
       "when": 1787365915522,
       "tag": "0009_jazzy_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787406960000,
+      "tag": "0010_lame_maria_hill",
+      "breakpoints": true
     }
   ]
 }
