@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Sparkles, Trash2 } from "lucide-react";
+import { KeyRound, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,8 +114,122 @@ export function AgentClient() {
       <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 lg:grid-cols-2">
         <ProfileSection profile={profile} onSave={saveProfile} />
         <KbSection entries={entries} kbSize={kbSize} onChanged={() => void refetch()} />
+        <OpenAiKeySection />
       </div>
     </div>
+  );
+}
+
+type KeyConnection = { connected: boolean; tokenLast4?: string };
+
+/**
+ * 022 — bring-your-own-key: si el cliente pega su propia API key de OpenAI,
+ * Nea la usa en vez de la key por defecto de la instancia del bot, así el
+ * cliente paga directamente su propio consumo de LLM.
+ */
+function OpenAiKeySection() {
+  const [connection, setConnection] = useState<KeyConnection | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedOk, setSavedOk] = useState(false);
+
+  const refetch = useCallback(async () => {
+    const res = await fetch("/api/agent/openai-key").then((r) =>
+      r.ok ? r.json() : null
+    );
+    setConnection(res ?? { connected: false });
+  }, []);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    setSavedOk(false);
+    const res = await fetch("/api/agent/openai-key", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ apiKey }),
+    }).catch(() => null);
+    setSaving(false);
+    if (!res?.ok) {
+      const data = (await res?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      setError(data?.error?.message ?? "No se pudo guardar la key");
+      return;
+    }
+    setApiKey("");
+    setSavedOk(true);
+    void refetch();
+  }
+
+  async function disconnect() {
+    await fetch("/api/agent/openai-key", { method: "DELETE" }).catch(() => null);
+    void refetch();
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <KeyRound className="h-4 w-4" />
+          Tu propia API key de OpenAI
+        </CardTitle>
+        <CardDescription>
+          Si conectas tu propia key, Nea la usa para responder en tu WhatsApp
+          y el consumo se factura directo a tu cuenta de OpenAI. Sin ella, se
+          sigue usando la key por defecto de la instancia.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {connection?.connected && (
+          <div className="flex items-center justify-between rounded-md border border-success-soft bg-success-tint px-3 py-2.5 text-sm">
+            <span className="text-success-text">
+              Conectada · termina en …{connection.tokenLast4}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => void disconnect()}>
+              Desconectar
+            </Button>
+          </div>
+        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="openai-key">Nueva API key</Label>
+          <Input
+            id="openai-key"
+            type="password"
+            placeholder={
+              connection?.connected
+                ? "Pega una nueva para reemplazarla"
+                : "sk-..."
+            }
+            value={apiKey}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              setSavedOk(false);
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Genera una en{" "}
+            <span className="text-foreground">
+              platform.openai.com → API keys
+            </span>
+            . Se valida contra OpenAI antes de guardarse y se almacena cifrada.
+          </p>
+        </div>
+        {savedOk && <p className="text-sm text-success">✓ Key conectada.</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button
+          disabled={!apiKey.trim() || saving}
+          onClick={() => void save()}
+        >
+          {saving ? "Validando y guardando…" : "Conectar key"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

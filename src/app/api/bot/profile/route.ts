@@ -1,6 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { apiError } from "@/lib/api";
+import { decryptSecret } from "@/lib/crypto";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { serializeBotProfile } from "@/server/bot/profile";
 
@@ -39,5 +40,14 @@ export async function GET(req: Request) {
     .where(eq(schema.kbEntry.organizationId, organizationId))
     .orderBy(asc(schema.kbEntry.createdAt));
 
-  return Response.json(serializeBotProfile(profile, kb));
+  const openaiApiKey =
+    profile.openaiKeyCipher && profile.openaiKeyIv && profile.openaiKeyTag
+      ? decryptSecret({
+          cipher: profile.openaiKeyCipher,
+          iv: profile.openaiKeyIv,
+          tag: profile.openaiKeyTag,
+        })
+      : null;
+
+  return Response.json(serializeBotProfile(profile, kb, openaiApiKey));
 }

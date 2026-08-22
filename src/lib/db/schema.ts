@@ -519,6 +519,15 @@ export const agentProfile = pgTable(
     instructions: text("instructions"),
     escalationRules: text("escalation_rules"),
     greeting: text("greeting"),
+    /**
+     * 022 — API key de OpenAI propia del cliente, cifrada igual que el token
+     * de WhatsApp. Cuando está presente, un cerebro externo (Nea) la usa en
+     * vez de la key de la agencia: el cliente paga su propio consumo de LLM.
+     * NULL = sigue usando la key por defecto de la instancia del bot.
+     */
+    openaiKeyCipher: text("openai_key_cipher"),
+    openaiKeyIv: text("openai_key_iv"),
+    openaiKeyTag: text("openai_key_tag"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
