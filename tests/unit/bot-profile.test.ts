@@ -41,6 +41,9 @@ function profileRow(overrides: Partial<AgentProfile> = {}): AgentProfile {
     instructions: "Vendemos limpiezas dentales.",
     escalationRules: "Urgencias de dolor → humano.",
     greeting: "¡Hola! Soy Sofi 🦷",
+    openaiKeyCipher: null,
+    openaiKeyIv: null,
+    openaiKeyTag: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -75,6 +78,7 @@ describe("serializeBotProfile", () => {
       },
       kb: "P: ¿Cuánto cuesta?\nR: $800.",
       resources: [],
+      openaiApiKey: null,
     });
   });
 
@@ -104,6 +108,15 @@ describe("serializeBotProfile", () => {
     expect(serializeBotProfile(profileRow(), []).resources).toEqual([]);
   });
 
+  it("openaiApiKey viaja tal cual cuando el caller ya la descifró (022)", () => {
+    const out = serializeBotProfile(profileRow(), [], "sk-cliente-propia");
+    expect(out.openaiApiKey).toBe("sk-cliente-propia");
+  });
+
+  it("sin key propia del cliente → openaiApiKey null", () => {
+    expect(serializeBotProfile(profileRow(), []).openaiApiKey).toBeNull();
+  });
+
   it("bloques del KB van tal cual, mezclados con P/R en orden", () => {
     const block: KbEntry = { ...qa("x", "y"), kind: "block", question: null, answer: null, content: "Horario: L-V 9-18." };
     const out = serializeBotProfile(profileRow(), [qa("¿Dónde están?", "En Querétaro."), block]);
@@ -116,6 +129,11 @@ describe("GET /api/bot/profile (ruta, DB fake)", () => {
 
   beforeEach(() => {
     vi.stubEnv("BOT_API_KEY", KEY);
+    vi.stubEnv("APP_BASE_URL", "http://localhost:3000");
+    vi.stubEnv("DATABASE_URL", "postgresql://t:t@localhost:5432/t");
+    vi.stubEnv("BETTER_AUTH_SECRET", "secret-de-test-suficientemente-largo");
+    vi.stubEnv("ENCRYPTION_KEY", Buffer.alloc(32, 7).toString("base64"));
+    vi.stubEnv("META_WEBHOOK_VERIFY_TOKEN", "verify-test");
     resetRateLimit();
     dbState.queue = [];
   });
@@ -148,5 +166,25 @@ describe("GET /api/bot/profile (ruta, DB fake)", () => {
     expect(body.profile.name).toBe("Sofi");
     expect(body.kb).toBe("P: ¿Cuánto?\nR: $800.");
     expect(body.resources).toEqual([]);
+    expect(body.openaiApiKey).toBeNull();
+  });
+
+  it("perfil con key de OpenAI del cliente → viaja descifrada (022)", async () => {
+    const { encryptSecret } = await import("@/lib/crypto");
+    const enc = encryptSecret("sk-cliente-super-secreta");
+    dbState.queue = [
+      [
+        profileRow({
+          openaiKeyCipher: enc.cipher,
+          openaiKeyIv: enc.iv,
+          openaiKeyTag: enc.tag,
+        }),
+      ],
+      [],
+    ];
+    const res = await GET(req(KEY));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { openaiApiKey: string | null };
+    expect(body.openaiApiKey).toBe("sk-cliente-super-secreta");
   });
 });

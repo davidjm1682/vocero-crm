@@ -64,6 +64,13 @@
       "when": 1787149721797,
       "tag": "0008_next_iron_lad",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787365915522,
+      "tag": "0009_jazzy_black_bolt",
+      "breakpoints": true
     }
   ]
 }
