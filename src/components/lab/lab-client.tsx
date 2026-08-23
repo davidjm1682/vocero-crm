@@ -9,6 +9,7 @@ import {
   FlaskConical,
   Play,
   Sparkles,
+  Trash2,
   TrendingDown,
   TrendingUp,
   XCircle,
@@ -99,6 +100,24 @@ export function LabClient() {
     },
   });
 
+  async function deleteRun(runId: string) {
+    const res = await fetch(`/api/lab/runs/${runId}`, { method: "DELETE" }).catch(
+      () => null
+    );
+    if (!res?.ok) {
+      const data = (await res?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      setError(data?.error?.message ?? "No se pudo borrar la corrida");
+      return;
+    }
+    if (selectedRunId === runId) {
+      setSelectedRunId(null);
+      setDetail(null);
+    }
+    void refetchRuns();
+  }
+
   async function launch() {
     setLaunching(true);
     setError(null);
@@ -171,6 +190,7 @@ export function LabClient() {
           runs={runs}
           selectedRunId={selectedRunId}
           onSelect={setSelectedRunId}
+          onDelete={(runId) => void deleteRun(runId)}
         />
         {detail ? (
           <Report detail={detail} onApplied={() => void refetchDetail(detail.run.id)} />
@@ -219,10 +239,12 @@ function HistoryList({
   runs,
   selectedRunId,
   onSelect,
+  onDelete,
 }: {
   runs: Run[];
   selectedRunId: string | null;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -233,14 +255,34 @@ function HistoryList({
         <p className="text-xs text-muted-foreground">Sin corridas todavía.</p>
       )}
       {runs.map((run) => (
-        <button
+        <div
           key={run.id}
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect(run.id)}
-          className={`w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent/50 ${
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") onSelect(run.id);
+          }}
+          className={`group relative w-full cursor-pointer rounded-lg border p-3 text-left transition-colors hover:bg-accent/50 ${
             selectedRunId === run.id ? "border-primary/50 bg-accent/60" : "bg-card"
           }`}
         >
-          <div className="flex items-center justify-between">
+          {run.status !== "running" && (
+            <button
+              type="button"
+              aria-label="Borrar corrida"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm("¿Borrar esta corrida del historial?")) {
+                  onDelete(run.id);
+                }
+              }}
+              className="absolute right-2 top-2 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <div className="flex items-center justify-between pr-6">
             <ScoreBadge run={run} />
             {run.delta !== null && run.delta !== 0 && (
               <span
@@ -271,7 +313,7 @@ function HistoryList({
               {run.judgeModel}
             </p>
           )}
-        </button>
+        </div>
       ))}
     </div>
   );

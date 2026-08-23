@@ -53,3 +53,40 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
     })),
   });
 });
+
+/** Borra una corrida del historial (cascada a sus casos). No mientras corre. */
+export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+  const { id } = await ctx.params;
+  const db = getDb();
+  const runs = await db
+    .select({ status: schema.agentTestRun.status })
+    .from(schema.agentTestRun)
+    .where(
+      scoped(
+        schema.agentTestRun.organizationId,
+        session.organizationId,
+        eq(schema.agentTestRun.id, id)
+      )
+    )
+    .limit(1);
+  const run = runs[0];
+  if (!run) return apiError(404, "not_found", "Corrida no encontrada");
+  if (run.status === "running") {
+    return apiError(
+      409,
+      "run_in_progress",
+      "No puedes borrar una corrida en curso"
+    );
+  }
+
+  await db
+    .delete(schema.agentTestRun)
+    .where(
+      scoped(
+        schema.agentTestRun.organizationId,
+        session.organizationId,
+        eq(schema.agentTestRun.id, id)
+      )
+    );
+  return Response.json({ ok: true });
+});
