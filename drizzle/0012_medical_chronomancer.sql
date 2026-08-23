@@ -1,0 +1,1 @@
+ALTER TABLE "agent_test_run" ADD COLUMN "judge_model" text;

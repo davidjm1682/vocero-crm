@@ -100,6 +100,18 @@ export async function chatJson<T>(
   };
 }
 
+/**
+ * Modelo del juez que efectivamente se usará para una organización (el mismo
+ * que resuelve `chatJson({judge:true})` por debajo). Para mostrar en UI qué
+ * modelo evaluó una corrida del Laboratorio, sin duplicar la resolución.
+ */
+export async function resolveJudgeModel(
+  organizationId?: string
+): Promise<string | null> {
+  const provider = await resolveProvider(organizationId);
+  return provider?.judgeModel ?? null;
+}
+
 type ResolvedProvider = {
   token: string;
   baseUrl: string;

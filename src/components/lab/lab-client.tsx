@@ -26,6 +26,7 @@ type Run = {
   status: "running" | "done" | "failed";
   score: number | null;
   summary?: string | null;
+  judgeModel?: string | null;
   error: string | null;
   startedAt: string;
   finishedAt: string | null;
@@ -265,6 +266,11 @@ function HistoryList({
               minute: "2-digit",
             })}
           </p>
+          {run.judgeModel && (
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground/70">
+              {run.judgeModel}
+            </p>
+          )}
         </button>
       ))}
     </div>

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, lt, ne } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { resolveJudgeModel } from "@/lib/ai";
 import { publish } from "@/server/events/bus";
 import { runAgentTurn } from "@/server/ai/pipeline";
 import { renderKb } from "@/server/ai/prompts";
@@ -24,11 +25,17 @@ export class RunConflictError extends Error {}
 
 export async function startRun(organizationId: string): Promise<string> {
   const db = getDb();
+  const judgeModel = await resolveJudgeModel(organizationId);
   let runId: string;
   try {
     const inserted = await db
       .insert(schema.agentTestRun)
-      .values({ id: newId("testRun"), organizationId, status: "running" })
+      .values({
+        id: newId("testRun"),
+        organizationId,
+        status: "running",
+        judgeModel,
+      })
       .returning();
     runId = inserted[0]!.id;
   } catch (err) {

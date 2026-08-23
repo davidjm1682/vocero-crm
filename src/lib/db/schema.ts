@@ -619,6 +619,7 @@ export const agentTestRun = pgTable(
       .default("running"),
     score: integer("score"),
     summary: text("summary"),
+    judgeModel: text("judge_model"),
     error: text("error"),
     startedAt: timestamp("started_at").notNull().defaultNow(),
     finishedAt: timestamp("finished_at"),
