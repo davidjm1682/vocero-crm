@@ -29,17 +29,30 @@ export const GET = withAuth(async (session) => {
 });
 
 const putSchema = z.object({
-  token: z.string().trim().min(10).max(200),
+  token: z.string().trim().min(10).max(200).optional(),
   model: z.string().trim().min(1).max(120),
   judgeModel: z.string().trim().max(120).nullable().optional(),
 });
 
-/** Guarda la conexión: valida el token+modelo contra el proveedor antes de cifrar. */
+/**
+ * Guarda la conexión: valida el token+modelo contra el proveedor antes de
+ * cifrar. Si no llega `token`, reutiliza el ya guardado (permite cambiar solo
+ * el modelo sin tener que volver a pegar el token cada vez).
+ */
 export const PUT = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
 
-  const check = await testProvider(body.data.token, body.data.model);
+  let token = body.data.token;
+  if (!token) {
+    const existing = await getAiProviderCredentials(session.organizationId);
+    if (!existing) {
+      return apiError(422, "missing_token", "Falta el token de acceso");
+    }
+    token = existing.token;
+  }
+
+  const check = await testProvider(token, body.data.model);
   if (!check.ok) {
     const status = check.code === "provider_unavailable" ? 503 : 422;
     return apiError(status, check.code, check.message);
@@ -47,7 +60,7 @@ export const PUT = withAuth(async (session, req: Request) => {
 
   await saveAiProviderCredentials({
     organizationId: session.organizationId,
-    token: body.data.token,
+    token,
     model: body.data.model,
     judgeModel: body.data.judgeModel || null,
   });

@@ -130,7 +130,7 @@ function ConnectForm({
   const [savedOk, setSavedOk] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
-  const canSave = token.trim() && model.trim();
+  const canSave = (token.trim() || existing) && model.trim();
 
   async function save() {
     setSaving(true);
@@ -140,7 +140,7 @@ function ConnectForm({
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        token,
+        ...(token.trim() ? { token } : {}),
         model,
         judgeModel: judgeModel.trim() || null,
       }),
