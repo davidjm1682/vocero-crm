@@ -201,6 +201,7 @@ function OpenAiKeySection() {
           <Input
             id="openai-key"
             type="password"
+            autoComplete="new-password"
             placeholder={
               connection?.connected
                 ? "Pega una nueva para reemplazarla"

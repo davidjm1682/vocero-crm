@@ -227,6 +227,7 @@ function ConnectForm({
           <Input
             id="token"
             type="password"
+            autoComplete="new-password"
             placeholder={existing ? `Guardado (…${existing.tokenLast4}) — pega uno nuevo para cambiarlo` : "EAAG…"}
             value={token}
             onChange={(e) => {
