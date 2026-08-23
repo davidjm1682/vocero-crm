@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +26,14 @@ type Connection = {
   tokenLast4: string;
 };
 
-type ModelOption = { id: string; name: string };
+type ModelOption = {
+  id: string;
+  name: string;
+  contextLength: number | null;
+  vision: boolean;
+  promptPricePerM: number | null;
+  completionPricePerM: number | null;
+};
 
 /**
  * 023 — Conecta el proveedor de IA (OpenRouter-compatible) que usan el
@@ -244,6 +257,18 @@ function ConnectForm({
   );
 }
 
+function formatPrice(perM: number | null): string | null {
+  if (perM === null) return null;
+  if (perM === 0) return "gratis";
+  return `$${perM < 1 ? perM.toFixed(3) : perM.toFixed(2)}/M`;
+}
+
+function formatContext(len: number | null): string | null {
+  if (!len) return null;
+  if (len >= 1000) return `${Math.round(len / 1000)}K ctx`;
+  return `${len} ctx`;
+}
+
 function ModelPicker({
   id,
   models,
@@ -259,7 +284,9 @@ function ModelPicker({
 }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => setQuery(value), [value]);
 
@@ -271,9 +298,50 @@ function ModelPicker({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  const filtered = models
-    .filter((m) => m.id.toLowerCase().includes(query.trim().toLowerCase()))
-    .slice(0, 50);
+  const needle = query.trim().toLowerCase();
+  const filtered = (
+    needle
+      ? models.filter(
+          (m) =>
+            m.id.toLowerCase().includes(needle) ||
+            m.name.toLowerCase().includes(needle)
+        )
+      : models
+  ).slice(0, 200);
+
+  function pick(m: ModelOption) {
+    setQuery(m.id);
+    onChange(m.id);
+    setOpen(false);
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (!open) {
+      if (e.key === "ArrowDown") setOpen(true);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const m = filtered[activeIndex];
+      if (m) pick(m);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
+  useEffect(() => setActiveIndex(0), [query]);
+
+  useEffect(() => {
+    listRef.current
+      ?.querySelector(`[data-index="${activeIndex}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
 
   return (
     <div ref={rootRef} className="relative">
@@ -281,35 +349,69 @@ function ModelPicker({
         id={id}
         placeholder={placeholder}
         value={query}
+        autoComplete="off"
         onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
         onChange={(e) => {
           setQuery(e.target.value);
           onChange(e.target.value);
           setOpen(true);
         }}
       />
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
-          {filtered.map((m) => (
-            <li key={m.id}>
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setQuery(m.id);
-                  onChange(m.id);
-                  setOpen(false);
-                }}
-              >
-                <span className="font-medium">{m.id}</span>
-                {m.name !== m.id && (
-                  <span className="ml-2 text-muted-foreground">{m.name}</span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+      {open && models.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md">
+          <p className="border-b px-3 py-1.5 text-xs text-muted-foreground">
+            {filtered.length === models.length
+              ? `${models.length} modelos disponibles`
+              : `${filtered.length} de ${models.length}`}
+          </p>
+          <ul ref={listRef} className="max-h-80 overflow-y-auto">
+            {filtered.length === 0 && (
+              <li className="px-3 py-3 text-sm text-muted-foreground">
+                Sin coincidencias — puedes usar el texto tal cual.
+              </li>
+            )}
+            {filtered.map((m, i) => {
+              const promptPrice = formatPrice(m.promptPricePerM);
+              const completionPrice = formatPrice(m.completionPricePerM);
+              const ctx = formatContext(m.contextLength);
+              return (
+                <li key={m.id} data-index={i}>
+                  <button
+                    type="button"
+                    className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm ${
+                      i === activeIndex ? "bg-accent" : "hover:bg-accent"
+                    }`}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pick(m);
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{m.name}</span>
+                      {m.vision && (
+                        <Badge variant="secondary" className="shrink-0">
+                          visión
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                      <span className="truncate">{m.id}</span>
+                      {ctx && <span>· {ctx}</span>}
+                      {promptPrice && (
+                        <span>
+                          · {promptPrice} in
+                          {completionPrice ? ` / ${completionPrice} out` : ""}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
       {open && models.length === 0 && (
         <p className="absolute z-10 mt-1 w-full rounded-md border bg-popover p-2 text-xs text-muted-foreground shadow-md">

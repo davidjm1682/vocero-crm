@@ -8,6 +8,14 @@ export const dynamic = "force-dynamic";
  * no requiere el token del cliente) para poblar el selector en Settings en
  * vez de que el usuario tenga que escribir el identificador de memoria.
  */
+type OpenRouterModel = {
+  id?: string;
+  name?: string;
+  context_length?: number;
+  architecture?: { input_modalities?: string[] };
+  pricing?: { prompt?: string; completion?: string };
+};
+
 export const GET = withAuth(async () => {
   const env = getEnv();
   try {
@@ -17,14 +25,28 @@ export const GET = withAuth(async () => {
     });
     if (!res.ok) return Response.json({ models: [] });
     const json = (await res.json().catch(() => null)) as {
-      data?: { id?: string; name?: string }[];
+      data?: OpenRouterModel[];
     } | null;
     const models = (json?.data ?? [])
-      .filter((m): m is { id: string; name?: string } => !!m.id)
-      .map((m) => ({ id: m.id, name: m.name ?? m.id }))
-      .sort((a, b) => a.id.localeCompare(b.id));
+      .filter((m): m is OpenRouterModel & { id: string } => !!m.id)
+      .map((m) => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        contextLength: m.context_length ?? null,
+        vision: m.architecture?.input_modalities?.includes("image") ?? false,
+        // USD por millón de tokens (el proveedor los da por token, como string)
+        promptPricePerM: toPricePerMillion(m.pricing?.prompt),
+        completionPricePerM: toPricePerMillion(m.pricing?.completion),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
     return Response.json({ models });
   } catch {
     return Response.json({ models: [] });
   }
 });
+
+function toPricePerMillion(perToken: string | undefined): number | null {
+  if (!perToken) return null;
+  const n = Number(perToken);
+  return Number.isFinite(n) ? n * 1_000_000 : null;
+}
