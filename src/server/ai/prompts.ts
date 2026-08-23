@@ -6,6 +6,9 @@ type KbEntry = typeof schema.kbEntry.$inferSelect;
 /** Marcador del prompt del juez: el ai-mock lo usa para despachar veredictos. */
 export const JUDGE_MARKER = "[JUEZ]";
 
+/** Marcador del prompt de resumen de corrida: el ai-mock lo usa para despachar. */
+export const RUN_SUMMARY_MARKER = "[RESUMEN_CORRIDA]";
+
 export function renderKb(entries: KbEntry[]): string {
   if (entries.length === 0) return "(knowledge base vacío)";
   return entries
@@ -84,6 +87,49 @@ export function buildJudgePrompt(input: {
     `CONOCIMIENTO CONFIGURADO:\n${input.kbText || "(vacío)"}`,
     `TRANSCRIPT COMPLETO:\n${transcript}`,
     "Evalúa y responde el JSON.",
+  ].join("\n\n");
+
+  return { system, user };
+}
+
+/**
+ * Prompt para el resumen cualitativo de una corrida completa del Laboratorio
+ * (todas las personas ya evaluadas). No repite el detalle por persona — lo
+ * interpreta: qué patrón se repite, por qué bajó/subió el score.
+ */
+export function buildRunSummaryPrompt(input: {
+  score: number | null;
+  previousScore: number | null;
+  cases: {
+    personaLabel: string;
+    veredicto: "verde" | "amarillo" | "rojo" | null;
+    hallazgos: { tipo: string; evidencia: string }[] | null;
+  }[];
+}): { system: string; user: string } {
+  const system = [
+    `${RUN_SUMMARY_MARKER} Eres un analista que resume corridas de evaluación de un agente de WhatsApp para el dueño del negocio, que NO es técnico.`,
+    "Respondes ÚNICAMENTE un objeto JSON con este esquema:",
+    '{"resumen":"2-3 frases en español, directo y accionable"}',
+    "- Nombra el patrón más importante que se repite entre los hallazgos (ej: alucinaciones sobre precios, falta de escalado, tono).",
+    "- Si el score bajó respecto a la corrida anterior, di posiblemente por qué. Si subió o es la primera corrida, dilo también.",
+    "- NUNCA repitas la lista de personas una por una. Sintetiza.",
+    "- Sin tecnicismos de IA/prompting — habla del comportamiento del agente en términos de negocio.",
+  ].join("\n");
+
+  const casesText = input.cases
+    .map((c) => {
+      const hallazgosText = (c.hallazgos ?? [])
+        .map((h) => `${h.tipo}: ${h.evidencia}`)
+        .join(" | ");
+      return `${c.personaLabel} → ${c.veredicto ?? "sin veredicto"}${hallazgosText ? ` (${hallazgosText})` : ""}`;
+    })
+    .join("\n");
+
+  const user = [
+    `SCORE ACTUAL: ${input.score ?? "sin score"}`,
+    `SCORE ANTERIOR: ${input.previousScore ?? "(no hay corrida previa)"}`,
+    `RESULTADOS POR PERSONA:\n${casesText}`,
+    "Resume y responde el JSON.",
   ].join("\n\n");
 
   return { system, user };

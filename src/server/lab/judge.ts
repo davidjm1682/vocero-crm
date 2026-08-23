@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { chatJson } from "@/lib/ai";
-import { buildJudgePrompt } from "@/server/ai/prompts";
+import { buildJudgePrompt, buildRunSummaryPrompt } from "@/server/ai/prompts";
 
 /** Veredicto estructurado del juez (FR-032, contrato ai.md). */
 export const Verdict = z.object({
@@ -57,6 +57,41 @@ export async function judgeCase(input: {
     return { status: "judge_failed", detail: result.detail };
   }
   return { status: "done", verdict: result.data };
+}
+
+const RunSummary = z.object({ resumen: z.string().min(1) });
+
+/**
+ * Interpretación cualitativa de la corrida completa (una llamada, al final).
+ * Best-effort: si falla, el run queda con summary=null y el reporte
+ * simplemente no muestra esa sección — no bloquea ni afecta el score.
+ */
+export async function summarizeRun(input: {
+  organizationId: string;
+  score: number | null;
+  previousScore: number | null;
+  cases: {
+    personaLabel: string;
+    veredicto: "verde" | "amarillo" | "rojo" | null;
+    hallazgos: { tipo: string; evidencia: string }[] | null;
+  }[];
+}): Promise<string | null> {
+  const { system, user } = buildRunSummaryPrompt(input);
+  const result = await chatJson(
+    RunSummary,
+    [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    { organizationId: input.organizationId }
+  );
+  if (!result.ok) {
+    console.error(
+      `[lab] resumen de corrida falló: ${result.error} — ${result.detail}`
+    );
+    return null;
+  }
+  return result.data.resumen;
 }
 
 /**

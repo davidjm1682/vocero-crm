@@ -36,6 +36,7 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
       id: run.id,
       status: run.status,
       score: run.score,
+      summary: run.summary,
       error: run.error,
       startedAt: run.startedAt.toISOString(),
       finishedAt: run.finishedAt?.toISOString() ?? null,

@@ -1,10 +1,10 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, lt, ne } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { publish } from "@/server/events/bus";
 import { runAgentTurn } from "@/server/ai/pipeline";
 import { renderKb } from "@/server/ai/prompts";
-import { computeScore, judgeCase } from "@/server/lab/judge";
+import { computeScore, judgeCase, summarizeRun } from "@/server/lab/judge";
 import { PERSONAS, type Persona } from "@/server/lab/personas";
 
 /**
@@ -152,16 +152,31 @@ async function runAllCases(
 
   const finalCases = await db
     .select({
+      persona: schema.agentTestCase.persona,
       status: schema.agentTestCase.status,
       veredicto: schema.agentTestCase.veredicto,
+      hallazgos: schema.agentTestCase.hallazgos,
     })
     .from(schema.agentTestCase)
     .where(eq(schema.agentTestCase.runId, runId));
   const score = computeScore(finalCases);
 
+  const previousScore = await getPreviousScore(organizationId, runId);
+  const summary = await summarizeRun({
+    organizationId,
+    score,
+    previousScore,
+    cases: finalCases.map((c) => ({
+      personaLabel:
+        PERSONAS.find((p) => p.key === c.persona)?.label ?? c.persona,
+      veredicto: c.veredicto,
+      hallazgos: c.hallazgos as { tipo: string; evidencia: string }[] | null,
+    })),
+  });
+
   await getDb()
     .update(schema.agentTestRun)
-    .set({ status: "done", score, finishedAt: new Date() })
+    .set({ status: "done", score, summary, finishedAt: new Date() })
     .where(eq(schema.agentTestRun.id, runId));
   publishProgress(organizationId, runId, "done", done, total, score);
 }
@@ -291,6 +306,35 @@ function publishProgress(
     type: "lab.run",
     data: { runId, status, progress: { done, total }, score },
   });
+}
+
+/** Score de la última corrida `done` anterior a `runId` (para el resumen). */
+async function getPreviousScore(
+  organizationId: string,
+  runId: string
+): Promise<number | null> {
+  const db = getDb();
+  const current = await db
+    .select({ startedAt: schema.agentTestRun.startedAt })
+    .from(schema.agentTestRun)
+    .where(eq(schema.agentTestRun.id, runId))
+    .limit(1);
+  if (!current[0]) return null;
+
+  const prev = await db
+    .select({ score: schema.agentTestRun.score })
+    .from(schema.agentTestRun)
+    .where(
+      and(
+        eq(schema.agentTestRun.organizationId, organizationId),
+        eq(schema.agentTestRun.status, "done"),
+        ne(schema.agentTestRun.id, runId),
+        lt(schema.agentTestRun.startedAt, current[0].startedAt)
+      )
+    )
+    .orderBy(desc(schema.agentTestRun.startedAt))
+    .limit(1);
+  return prev[0]?.score ?? null;
 }
 
 function isUniqueViolation(err: unknown): boolean {

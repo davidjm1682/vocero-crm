@@ -1,4 +1,4 @@
-import { JUDGE_MARKER } from "@/server/ai/prompts";
+import { JUDGE_MARKER, RUN_SUMMARY_MARKER } from "@/server/ai/prompts";
 
 /**
  * Proveedor LLM determinista para el self-test (contrato mocks.md).
@@ -41,6 +41,13 @@ export function aiMockCompletion(messages: InMessage[]): string {
       });
     }
     return JSON.stringify({ veredicto: "verde", hallazgos: [] });
+  }
+
+  // Resumen de corrida del Laboratorio: interpretación determinista.
+  if (system.includes(RUN_SUMMARY_MARKER)) {
+    return JSON.stringify({
+      resumen: "Corrida de prueba (mock): sin patrones relevantes que reportar.",
+    });
   }
 
   const text = lastUser.toLowerCase();

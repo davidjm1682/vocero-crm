@@ -6,7 +6,7 @@ vi.mock("@/lib/ai", () => ({
   chatJson: (...args: unknown[]) => chatJson(...args),
 }));
 
-import { computeScore, judgeCase } from "@/server/lab/judge";
+import { computeScore, judgeCase, summarizeRun } from "@/server/lab/judge";
 
 describe("judgeCase (FR-032)", () => {
   beforeEach(() => chatJson.mockReset());
@@ -43,6 +43,42 @@ describe("judgeCase (FR-032)", () => {
       behaviorText: "",
     });
     expect(outcome.status).toBe("judge_failed");
+  });
+});
+
+describe("summarizeRun", () => {
+  beforeEach(() => chatJson.mockReset());
+
+  it("resumen válido → lo devuelve", async () => {
+    chatJson.mockResolvedValue({
+      ok: true,
+      data: { resumen: "El agente alucinó precios en 2 de 6 casos." },
+      raw: "{}",
+    });
+    const summary = await summarizeRun({
+      organizationId: "org_1",
+      score: 60,
+      previousScore: 80,
+      cases: [
+        { personaLabel: "Comprador decidido", veredicto: "verde", hallazgos: null },
+      ],
+    });
+    expect(summary).toBe("El agente alucinó precios en 2 de 6 casos.");
+  });
+
+  it("falla el proveedor → null (no lanza, no bloquea la corrida)", async () => {
+    chatJson.mockResolvedValue({
+      ok: false,
+      error: "invalid_output",
+      detail: "no cumple el esquema",
+    });
+    const summary = await summarizeRun({
+      organizationId: "org_1",
+      score: null,
+      previousScore: null,
+      cases: [],
+    });
+    expect(summary).toBeNull();
   });
 });
 

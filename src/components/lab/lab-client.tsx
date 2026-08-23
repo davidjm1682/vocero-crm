@@ -25,6 +25,7 @@ type Run = {
   id: string;
   status: "running" | "done" | "failed";
   score: number | null;
+  summary?: string | null;
   error: string | null;
   startedAt: string;
   finishedAt: string | null;
@@ -303,6 +304,12 @@ function Report({
         </CardHeader>
         {run.status === "done" && (
           <CardContent>
+            {run.summary && (
+              <div className="mb-4 flex items-start gap-2 rounded-md border bg-accent/40 p-3 text-sm">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                <p>{run.summary}</p>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3 text-center text-sm">
               {(["verde", "amarillo", "rojo"] as const).map((v) => (
                 <div key={v} className="rounded-md border p-3">
