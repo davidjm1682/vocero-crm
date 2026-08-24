@@ -1,9 +1,9 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Versión: 1.2.0 → 1.3.0
+Versión: 1.2.0 → 1.4.0 (dos enmiendas MINOR independientes, fusionadas)
 
-Cambios:
+Cambios (enmienda A):
   - Principio VI "Specs Antes de Código" → EXPANDIDO: se definen tres carriles
     (ciclo completo / carril ligero / exento) con un criterio objetivo para
     elegir entre ellos —si toca el modelo de datos o un contrato publicado—, se
@@ -16,16 +16,9 @@ Cambios:
     propio `spec.md` si es carril ligero). Sin esta aclaración el carril ligero
     habría dejado la puerta constitucional sin sitio donde ocurrir, que sería un
     debilitamiento —y por tanto un MAJOR—, no una expansión.
-  - Principios I, II, III, IV, V, VII, VIII y IX: íntegros (sin cambio).
-  - Governance: sin cambio.
 
-Bump: MINOR (1.2.0 → 1.3.0) — expansión material de un principio; no elimina ni
-redefine nada de forma incompatible. Lo que antes cumplía el ciclo completo lo
-sigue cumpliendo.
-
-Motivación:
-  El carril ligero NO es una práctica nueva: es la que el repositorio ya usa.
-  `001-vocero-core` llevó el ciclo completo (12 archivos, ~14.600 palabras)
+  Motivación: el carril ligero NO es una práctica nueva: es la que el repositorio
+  ya usa. `001-vocero-core` llevó el ciclo completo (12 archivos, ~14.600 palabras)
   porque era el producto entero; `002-diseno-atlas` se quedó en spec + plan
   (~1.290 palabras) y `003-paridad-inbox`, en un solo `spec.md` (565 palabras).
   Esa gradación funcionó, pero nunca se escribió — y sin el escalón intermedio
@@ -33,14 +26,39 @@ Motivación:
   entregadas entre la 003 y la versión 1.2.0 de la app se implementaron sin spec.
   Esta enmienda ratifica la práctica existente y le pone criterio.
 
+Cambios (enmienda B):
+  - Principio VIII "Foco Vertical" → EXPANDIDO: se agrega una excepción acotada
+    a la prohibición de "multi-instancia gestionada centralizadamente". Vocero
+    ahora también se vende directamente a agencias de marketing que administran
+    múltiples workspaces de cliente (organizaciones aisladas, sin cambios en su
+    modelo) desde un panel centralizado, bajo un plan con límite de workspaces
+    incluidos. El billing/cobro automático sigue prohibido sin excepción por el
+    Principio II — el cambio de plan de una agencia es una acción administrativa
+    manual del operador, nunca un flujo de checkout/suscripción.
+
+  Motivación: feature 004 (panel de agencia multi-cliente) requería esta
+  excepción; sin ella, la constitución rechazaba explícitamente el modelo de
+  negocio de reventa a agencias que el producto ahora también atiende.
+
+  Principios I, II, III, IV, V, VII y IX: íntegros (sin cambio semántico) en
+  ambas enmiendas. Governance: Ratified = 2026-07-09 (sin cambio) / Last
+  Amended = 2026-08-24 (última de las dos enmiendas fusionadas).
+
+Bump: MINOR acumulado (1.2.0 → 1.4.0) — dos expansiones materiales
+independientes (Principio VI y Principio VIII), ninguna elimina ni redefine
+nada de forma incompatible. Lo que antes cumplía el ciclo completo lo sigue
+cumpliendo; los Principios I/II/III (aislamiento, soberanía, sin billing
+automático) quedan sin excepción.
+
 Plantillas dependientes:
   - .specify/templates/spec-template.md — ✅ compatible. Sus secciones
     obligatorias (User Scenarios & Testing, Requirements, Success Criteria)
     cubren de sobra el mínimo del carril ligero; en ese carril se rellenan solo
     ellas y se omiten las opcionales.
-  - .specify/templates/plan-template.md — ✅ compatible (solo aplica al ciclo
-    completo; su Constitution Check se evalúa contra esta versión).
-  - .specify/templates/tasks-template.md — ✅ compatible (ídem).
+  - .specify/templates/plan-template.md — ✅ compatible (Constitution Check
+    genérico; los gates se evalúan contra esta versión, en ambos carriles donde
+    aplique).
+  - .specify/templates/tasks-template.md — ✅ compatible.
   - CLAUDE.md — ⚠ conviene reflejar los tres carriles cuando se actualice.
 
 TODOs diferidos:
@@ -210,11 +228,31 @@ conversaciones de WhatsApp de UN negocio* se rechaza.
   sirvan a atender/organizar/convertir (broadcast masivo, scraping de números,
   flujos visuales genéricos) quedan FUERA del alcance de v1.
 - Toda feature MUST servir a la agencia que despliega o al negocio que opera UNA
-  instancia. Lo que solo sirva a una plataforma centralizada (billing, planes,
-  multi-instancia) queda FUERA.
+  instancia, **o a una agencia que administra múltiples instancias (workspaces de
+  cliente) de sus propios clientes finales bajo un plan** (modelo de reventa
+  agencia→clientes). Esta última es la única forma de multi-instancia gestionada
+  centralizadamente permitida en v1: cada workspace de cliente sigue siendo una
+  organización aislada e independiente (Principios I y III sin excepción), y la
+  capa de agencia solo agrupa el acceso administrativo a esas organizaciones — no
+  introduce un tenant compartido ni datos cruzados entre workspaces.
+- El billing/cobro automático (Stripe u otro procesador) SIGUE prohibido por el
+  Principio II sin excepción. Los planes de agencia (límite de workspaces
+  incluidos) y su asignación o cambio son una acción administrativa manual del
+  operador de Vocero, nunca un flujo de checkout o suscripción con cobro
+  automático. Cualquier feature de agencia que requiera un procesador de pagos
+  queda FUERA del alcance de v1.
+- Fuera de la excepción anterior, lo que solo sirva a una plataforma centralizada
+  genérica sin relación con el modelo de reventa a agencias (billing propio del
+  operador, analítica cross-tenant, u otra forma de multi-instancia no descrita
+  arriba) sigue FUERA.
 
 **Rationale**: Un foco vertical explícito mantiene el modelo de datos alineado con el
-negocio real y da un criterio claro para aceptar o rechazar alcance.
+negocio real y da un criterio claro para aceptar o rechazar alcance. Vocero se vende
+también directamente a agencias de marketing que revenden el servicio a sus propios
+clientes bajo su marca; permitir la capa de agencia como excepción acotada (sin abrir
+la puerta a billing automático ni a tenants compartidos) mantiene esa realidad
+comercial dentro del alcance de v1 sin comprometer la soberanía ni el aislamiento que
+exigen los Principios I, II y III.
 
 ### IX. Verificación de Comportamiento en Vivo (NO NEGOCIABLE)
 
@@ -313,4 +351,4 @@ práctica, convención o preferencia; ante un conflicto, gana la constitución.
 - **Propagación**: al enmendar la constitución se revisan y, si procede, se actualizan
   las plantillas dependientes (plan, spec, tasks).
 
-**Version**: 1.3.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-08-17
+**Version**: 1.4.0 | **Ratified**: 2026-07-09 | **Last Amended**: 2026-08-24
