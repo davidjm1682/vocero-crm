@@ -142,5 +142,5 @@ repo ya registra. Los subagentes con `memory: project` usan
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/002-diseno-atlas-white-label/plan.md
+at specs/004-agencia-multi-cliente/plan.md
 <!-- SPECKIT END -->
