@@ -233,6 +233,45 @@ del cliente se conecta con el **override de callback por WABA**:
 > Graph** (botón "Sincronizar" en Configuración → Plantillas), así el modo
 > agencia ve las aprobaciones igual.
 
+## Panel de agencia multi-cliente
+
+Distinto del "Modo agencia (Tech Provider)" de arriba (que es sobre CÓMO se
+conecta el WhatsApp cuando despliegas una instancia por cliente): este panel
+permite que **una sola instancia de Vocero** sirva a varios clientes de una
+agencia desde un panel único, cada uno con su propio workspace aislado
+(WhatsApp, contactos, pipeline, agente de IA — el mismo modelo de siempre,
+sin cambios).
+
+**No es self-service todavía**: crear una agencia y asignarle un plan es una
+acción administrativa que hace el operador de la instancia directamente en
+la base de datos (no hay checkout ni cobro automático — ver Constitución,
+Principio II).
+
+**Crear una agencia nueva** (ejemplo, plan Growth = 15 workspaces incluidos):
+
+```sql
+INSERT INTO agency (id, name, plan, plan_limit, created_at)
+VALUES ('agency_xxxxxxxxxxxxxxxxxxxx', 'Nombre de la Agencia', 'growth', 15, now());
+```
+
+**Asociar una organización existente a la agencia** (para que su dueño la
+administre desde el panel de agencia en vez de por separado):
+
+```sql
+UPDATE organization SET agency_id = 'agency_xxxxxxxxxxxxxxxxxxxx' WHERE id = 'org_...';
+```
+
+Desde ese momento, todo miembro con acceso a esa organización ve el link
+**Agencia** en el menú lateral, con un panel para crear nuevos workspaces de
+cliente (dentro del límite del plan), navegar entre ellos, y archivar los que
+ya no estén activos sin borrar sus datos.
+
+**Cambiar el plan de una agencia** (ej. al llegar al límite):
+
+```sql
+UPDATE agency SET plan = 'scale', plan_limit = 30 WHERE id = 'agency_xxxxxxxxxxxxxxxxxxxx';
+```
+
 ## Configuración de la IA
 
 En las variables de la instancia:

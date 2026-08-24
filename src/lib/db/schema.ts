@@ -66,14 +66,38 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const organization = pgTable("organization", {
+/**
+ * 004 — Agencia: capa administrativa por ENCIMA de organization (nunca la
+ * reemplaza). Agrupa el acceso de sus miembros a N organizaciones (workspaces
+ * de cliente), cada una tan aislada como cualquier organización hoy.
+ */
+export const agency = pgTable("agency", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  slug: text("slug").unique(),
-  logo: text("logo"),
+  plan: text("plan", { enum: ["starter", "growth", "scale"] }).notNull(),
+  planLimit: integer("plan_limit").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  metadata: text("metadata"),
 });
+
+export const organization = pgTable(
+  "organization",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").unique(),
+    logo: text("logo"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    metadata: text("metadata"),
+    // 004 — null = organización independiente (comportamiento actual sin cambios).
+    agencyId: text("agency_id").references(() => agency.id, {
+      onDelete: "restrict",
+    }),
+    // 004 — workspace de cliente dado de baja por la agencia: conserva todos
+    // sus datos, deja de contar contra el límite del plan.
+    archivedAt: timestamp("archived_at"),
+  },
+  (t) => [index("organization_agency_idx").on(t.agencyId, t.archivedAt)]
+);
 
 export const member = pgTable("member", {
   id: text("id").primaryKey(),

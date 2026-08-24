@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Building2,
   FlaskConical,
   Inbox,
   Kanban,
@@ -54,6 +55,7 @@ export function AppNav({
   const pathname = usePathname();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
+  const [hasAgency, setHasAgency] = useState(false);
 
   async function refetchUnread() {
     const res = await fetch("/api/conversations").catch(() => null);
@@ -66,7 +68,17 @@ export function AppNav({
 
   useEffect(() => {
     void refetchUnread();
+    // 004 — el link de "Agencia" solo se muestra si la organización activa
+    // pertenece a una agencia; el propio endpoint resuelve eso.
+    fetch("/api/agency")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { agency: unknown } | null) => setHasAgency(!!data?.agency))
+      .catch(() => setHasAgency(false));
   }, []);
+
+  const navItems = hasAgency
+    ? [{ href: "/agency", label: "Agencia", icon: Building2 } as const, ...NAV]
+    : NAV;
 
   useEvents({
     onMessageNew: () => void refetchUnread(),
@@ -114,7 +126,7 @@ export function AppNav({
       </div>
 
       <nav className="flex flex-col gap-0.5">
-        {NAV.map((item) => {
+        {navItems.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (

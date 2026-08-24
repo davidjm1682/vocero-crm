@@ -34,10 +34,10 @@ rutas son relativas a la raíz del repo `vocero-crm/`.
 
 **Purpose**: Preparar el modelo de datos base que todas las historias necesitan.
 
-- [ ] T001 Agregar prefijo nanoid `agency: "agency"` en `src/lib/db/ids.ts`
-- [ ] T002 Definir tabla `agency` (id, name, plan enum, planLimit, createdAt) en `src/lib/db/schema.ts` según `data-model.md`
-- [ ] T003 Agregar columnas `agencyId` (FK nullable, onDelete restrict) y `archivedAt` (timestamp nullable) a la tabla `organization` en `src/lib/db/schema.ts`
-- [ ] T004 Generar migración con `pnpm db:generate` y verificar el SQL resultante contra `data-model.md` antes de commitear
+- [x] T001 Agregar prefijo nanoid `agency: "agency"` en `src/lib/db/ids.ts`
+- [x] T002 Definir tabla `agency` (id, name, plan enum, planLimit, createdAt) en `src/lib/db/schema.ts` según `data-model.md`
+- [x] T003 Agregar columnas `agencyId` (FK nullable, onDelete restrict) y `archivedAt` (timestamp nullable) a la tabla `organization` en `src/lib/db/schema.ts`
+- [x] T004 Generar migración con `pnpm db:generate` y verificar el SQL resultante contra `data-model.md` antes de commitear
 
 **Checkpoint**: Schema listo, migración generada y verificada (sin aplicar aún a producción).
 
@@ -49,10 +49,10 @@ rutas son relativas a la raíz del repo `vocero-crm/`.
 
 **⚠️ CRITICAL**: Ninguna historia puede implementarse sin esto completo.
 
-- [ ] T005 En `src/server/auth/on-signup.ts`, actualizar `resolveMembership()` para resolver por `session.activeOrganizationId` cuando el usuario tiene múltiples membresías, con fallback a la primera membresía si no hay organización activa (research.md, Decisión 2) — SIN romper el caso actual de un usuario con una sola organización
-- [ ] T006 Crear `src/server/agency/credentials.ts` con `getAgencyForUser(userId)` (resuelve la agencia a partir de la organización activa del usuario vía `organization.agencyId`) y `countActiveWorkspaces(agencyId)` (cuenta `organization` con `agencyId` dado y `archivedAt IS NULL`)
-- [ ] T007 Crear `src/server/agency/members.ts` con `addMemberToWorkspace(userId, organizationId, role)` (inserta fila `member`, reutilizando el patrón de `onUserCreated`) y `grantAgencyMembersToWorkspace(agencyId, newOrganizationId)` (agrega a TODOS los miembros existentes de la agencia como `member` del nuevo workspace)
-- [ ] T008 [P] Endpoint `POST /api/agency/workspaces/:id/enter` en `src/app/api/agency/workspaces/[id]/enter/route.ts` — cambia `session.activeOrganizationId` al workspace indicado, validando que el usuario tenga membresía ahí (403 si no)
+- [x] T005 En `src/server/auth/on-signup.ts`, actualizar `resolveMembership()` para resolver por `session.activeOrganizationId` cuando el usuario tiene múltiples membresías, con fallback a la primera membresía si no hay organización activa (research.md, Decisión 2) — SIN romper el caso actual de un usuario con una sola organización
+- [x] T006 Crear `src/server/agency/credentials.ts` con `getAgencyForUser(userId)` (resuelve la agencia a partir de la organización activa del usuario vía `organization.agencyId`) y `countActiveWorkspaces(agencyId)` (cuenta `organization` con `agencyId` dado y `archivedAt IS NULL`)
+- [x] T007 Crear `src/server/agency/members.ts` con `addMemberToWorkspace(userId, organizationId, role)` (inserta fila `member`, reutilizando el patrón de `onUserCreated`) y `grantAgencyMembersToWorkspace(agencyId, newOrganizationId)` (agrega a TODOS los miembros existentes de la agencia como `member` del nuevo workspace)
+- [x] T008 [P] Endpoint `POST /api/agency/workspaces/:id/enter` en `src/app/api/agency/workspaces/[id]/enter/route.ts` — cambia `session.activeOrganizationId` al workspace indicado, validando que el usuario tenga membresía ahí (403 si no)
 
 **Checkpoint**: Un usuario puede pertenecer a múltiples organizaciones y cambiar entre ellas; la resolución de sesión respeta cuál está activa. Listo para construir las historias sobre esto.
 
@@ -66,10 +66,10 @@ rutas son relativas a la raíz del repo `vocero-crm/`.
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] En `src/server/agency/credentials.ts`, agregar `createAgencyWorkspace(agencyId, name)`: valida `countActiveWorkspaces(agencyId) < planLimit` (409 si no), crea la `organization` con `agencyId` seteado, siembra pipeline + `agentProfile` (mismo patrón que `onUserCreated` en `on-signup.ts`), y llama a `grantAgencyMembersToWorkspace` (T007)
-- [ ] T010 [US1] Endpoint `POST /api/agency/workspaces` en `src/app/api/agency/workspaces/route.ts` — valida body con Zod (`name` requerido), llama a `createAgencyWorkspace`, devuelve 201 o 409 `plan_limit_reached` según contrato en `contracts/agency-api.md`
-- [ ] T011 [US1] Verificar que el flujo de conexión de WhatsApp existente (`src/components/settings/whatsapp-wizard.tsx` + su API) funciona sin cambios al operar dentro de un workspace de cliente (debe funcionar igual que hoy porque sigue siendo una `organization` normal) — ajustar solo si se detecta alguna asunción de "única organización de la instancia"
-- [ ] T012 [P] [US1] Test unitario en `tests/unit/agency-workspace.test.ts`: `createAgencyWorkspace` respeta el límite de plan, crea pipeline/agentProfile sembrados, y agrega membresía a todos los miembros de la agencia
+- [x] T009 [US1] En `src/server/agency/credentials.ts`, agregar `createAgencyWorkspace(agencyId, name)`: valida `countActiveWorkspaces(agencyId) < planLimit` (409 si no), crea la `organization` con `agencyId` seteado, siembra pipeline + `agentProfile` (mismo patrón que `onUserCreated` en `on-signup.ts`), y llama a `grantAgencyMembersToWorkspace` (T007)
+- [x] T010 [US1] Endpoint `POST /api/agency/workspaces` en `src/app/api/agency/workspaces/route.ts` — valida body con Zod (`name` requerido), llama a `createAgencyWorkspace`, devuelve 201 o 409 `plan_limit_reached` según contrato en `contracts/agency-api.md`
+- [x] T011 [US1] Verificar que el flujo de conexión de WhatsApp existente (`src/components/settings/whatsapp-wizard.tsx` + su API) funciona sin cambios al operar dentro de un workspace de cliente (debe funcionar igual que hoy porque sigue siendo una `organization` normal) — ajustar solo si se detecta alguna asunción de "única organización de la instancia"
+- [x] T012 [P] [US1] Test unitario en `tests/unit/agency-workspace.test.ts`: `createAgencyWorkspace` respeta el límite de plan, crea pipeline/agentProfile sembrados, y agrega membresía a todos los miembros de la agencia
 
 **Checkpoint**: Se puede crear un workspace de cliente vía API, aislado y con WhatsApp conectable, dentro del límite del plan.
 
@@ -83,13 +83,13 @@ rutas son relativas a la raíz del repo `vocero-crm/`.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] En `src/server/agency/credentials.ts`, agregar `listAgencyWorkspaces(agencyId)`: devuelve workspaces activos con nombre y estado de conexión de WhatsApp (join con la tabla de credenciales de WhatsApp existente)
-- [ ] T014 [US2] Endpoint `GET /api/agency` en `src/app/api/agency/route.ts` — devuelve los datos de la agencia del usuario en sesión + `activeWorkspaces` (usa `getAgencyForUser` + `countActiveWorkspaces` de T006), o `{agency: null}` si el usuario no pertenece a ninguna
-- [ ] T015 [US2] Endpoint `GET /api/agency/workspaces` en `src/app/api/agency/workspaces/route.ts` — usa `listAgencyWorkspaces` (T013)
-- [ ] T016 [US2] Página `src/app/(app)/agency/page.tsx` — server component que redirige/protege si el usuario no pertenece a una agencia
-- [ ] T017 [US2] Componente `src/components/agency/agency-client.tsx` — lista de workspaces (nombre + estado de conexión), cada uno navega a su inbox llamando a `POST /api/agency/workspaces/:id/enter` (T008) antes de redirigir
-- [ ] T018 [US2] Confirmar que el middleware/guard de acceso a rutas de una organización (donde exista) rechaza intentos de un usuario sin membresía en esa organización — cubre el edge case "acceso a workspace de otra agencia" del spec
-- [ ] T019 [P] [US2] Test unitario en `tests/unit/agency-panel.test.ts`: `listAgencyWorkspaces` solo devuelve workspaces activos de la agencia correcta; `getAgencyForUser` devuelve `null` para un usuario sin agencia
+- [x] T013 [US2] En `src/server/agency/credentials.ts`, agregar `listAgencyWorkspaces(agencyId)`: devuelve workspaces activos con nombre y estado de conexión de WhatsApp (join con la tabla de credenciales de WhatsApp existente)
+- [x] T014 [US2] Endpoint `GET /api/agency` en `src/app/api/agency/route.ts` — devuelve los datos de la agencia del usuario en sesión + `activeWorkspaces` (usa `getAgencyForUser` + `countActiveWorkspaces` de T006), o `{agency: null}` si el usuario no pertenece a ninguna
+- [x] T015 [US2] Endpoint `GET /api/agency/workspaces` en `src/app/api/agency/workspaces/route.ts` — usa `listAgencyWorkspaces` (T013)
+- [x] T016 [US2] Página `src/app/(app)/agency/page.tsx` — server component que redirige/protege si el usuario no pertenece a una agencia
+- [x] T017 [US2] Componente `src/components/agency/agency-client.tsx` — lista de workspaces (nombre + estado de conexión), cada uno navega a su inbox llamando a `POST /api/agency/workspaces/:id/enter` (T008) antes de redirigir
+- [x] T018 [US2] Confirmar que el middleware/guard de acceso a rutas de una organización (donde exista) rechaza intentos de un usuario sin membresía en esa organización — cubre el edge case "acceso a workspace de otra agencia" del spec
+- [x] T019 [P] [US2] Test unitario en `tests/unit/agency-panel.test.ts`: `listAgencyWorkspaces` solo devuelve workspaces activos de la agencia correcta; `getAgencyForUser` devuelve `null` para un usuario sin agencia
 
 **Checkpoint**: El panel de agencia funciona de punta a punta: listar, entrar, operar cada workspace de forma aislada.
 
@@ -103,10 +103,10 @@ rutas son relativas a la raíz del repo `vocero-crm/`.
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] Endpoint `POST /api/agency/workspaces/:id/archive` en `src/app/api/agency/workspaces/[id]/archive/route.ts` — setea `archivedAt = now()` en la organización, validando que pertenezca a la agencia del usuario en sesión (404 si no)
-- [ ] T021 [US3] En `agency-client.tsx` (T017), deshabilitar el botón "Agregar cliente" cuando `activeWorkspaces >= planLimit`, con el mensaje de `contracts/agency-api.md` ("Alcanzaste el límite de N clientes de tu plan X...")
-- [ ] T022 [US3] Agregar acción de archivar workspace en la UI del panel de agencia (T017) — confirmación antes de archivar, dado que oculta el workspace de la lista activa
-- [ ] T023 [P] [US3] Test unitario en `tests/unit/agency-workspace.test.ts` (extiende T012): `createAgencyWorkspace` rechaza con 409 al llegar al límite exacto; un workspace archivado no cuenta contra el límite; archivar preserva todas las filas relacionadas (no hay `onDelete: cascade` disparándose)
+- [x] T020 [US3] Endpoint `POST /api/agency/workspaces/:id/archive` en `src/app/api/agency/workspaces/[id]/archive/route.ts` — setea `archivedAt = now()` en la organización, validando que pertenezca a la agencia del usuario en sesión (404 si no)
+- [x] T021 [US3] En `agency-client.tsx` (T017), deshabilitar el botón "Agregar cliente" cuando `activeWorkspaces >= planLimit`, con el mensaje de `contracts/agency-api.md` ("Alcanzaste el límite de N clientes de tu plan X...")
+- [x] T022 [US3] Agregar acción de archivar workspace en la UI del panel de agencia (T017) — confirmación antes de archivar, dado que oculta el workspace de la lista activa
+- [x] T023 [P] [US3] Test unitario en `tests/unit/agency-workspace.test.ts` (extiende T012): `createAgencyWorkspace` rechaza con 409 al llegar al límite exacto; un workspace archivado no cuenta contra el límite; archivar preserva todas las filas relacionadas (no hay `onDelete: cascade` disparándose)
 
 **Checkpoint**: Las 3 historias del spec están completas y verificables independientemente.
 
@@ -116,10 +116,10 @@ rutas son relativas a la raíz del repo `vocero-crm/`.
 
 **Purpose**: Cierre de la feature conforme a la Definición de Hecho reforzada del proyecto (Principios V y IX).
 
-- [ ] T024 Ejecutar gate técnico completo: `pnpm typecheck && pnpm lint && pnpm build && pnpm test`
-- [ ] T025 Ejecutar el guion de verificación en vivo de `quickstart.md` (las 3 historias + camino infeliz) contra la app corriendo local con mocks activos; corregir y re-verificar hasta verde (Principio IX — self-test por el implementador, no delegado)
-- [ ] T026 Confirmar que una organización SIN agencia (`agencyId = null`, el caso actual del producto) sigue funcionando exactamente igual que antes de esta feature — smoke test manual de un negocio directo existente
-- [ ] T027 [P] Documentar en el `README.md` o guía de operación cómo el operador de Vocero crea una agencia nueva y le asigna un plan (dado que es una acción administrativa manual, no self-service — FR-016)
+- [x] T024 Ejecutar gate técnico completo: `pnpm typecheck && pnpm lint && pnpm build && pnpm test`
+- [x] T025 Ejecutar el guion de verificación en vivo de `quickstart.md` (las 3 historias + camino infeliz) contra la app corriendo local con mocks activos; corregir y re-verificar hasta verde (Principio IX — self-test por el implementador, no delegado)
+- [x] T026 Confirmar que una organización SIN agencia (`agencyId = null`, el caso actual del producto) sigue funcionando exactamente igual que antes de esta feature — smoke test manual de un negocio directo existente
+- [x] T027 [P] Documentar en el `README.md` o guía de operación cómo el operador de Vocero crea una agencia nueva y le asigna un plan (dado que es una acción administrativa manual, no self-service — FR-016)
 
 ---
 

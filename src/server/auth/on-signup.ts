@@ -1,4 +1,4 @@
-import { count, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 
@@ -58,17 +58,42 @@ export async function onUserCreated(userId: string, userName: string) {
   });
 }
 
-/** Organización activa de un usuario (su primera membresía). */
+/** Organización activa de un usuario al crear sesión (su primera membresía). */
 export async function resolveActiveOrganizationId(
   userId: string
 ): Promise<string | null> {
   return (await resolveMembership(userId))?.organizationId ?? null;
 }
 
+/**
+ * 004 — Membresía a usar en el request actual. Un usuario puede tener
+ * membresía en múltiples organizaciones (agencia con varios workspaces de
+ * cliente); si la sesión ya tiene una organización activa Y el usuario
+ * tiene membresía ahí, se respeta esa elección. Si no, cae a la primera
+ * membresía (comportamiento previo, sigue siendo correcto para el caso de
+ * un usuario con una sola organización).
+ */
 export async function resolveMembership(
-  userId: string
+  userId: string,
+  activeOrganizationId?: string | null
 ): Promise<{ organizationId: string; role: string } | null> {
   const db = getDb();
+  if (activeOrganizationId) {
+    const active = await db
+      .select({
+        organizationId: schema.member.organizationId,
+        role: schema.member.role,
+      })
+      .from(schema.member)
+      .where(
+        and(
+          eq(schema.member.userId, userId),
+          eq(schema.member.organizationId, activeOrganizationId)
+        )
+      )
+      .limit(1);
+    if (active[0]) return active[0];
+  }
   const rows = await db
     .select({
       organizationId: schema.member.organizationId,
