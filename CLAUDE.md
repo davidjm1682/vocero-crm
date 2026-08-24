@@ -138,3 +138,9 @@ repo ya registra. Los subagentes con `memory: project` usan
 2. **Subagentes** (`.claude/agents/`): `deploy-ops` (deploy/logs/healthchecks,
    no escribe código de app) · `public-site-builder` (páginas públicas/legales
    y config de paneles externos).
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/002-diseno-atlas-white-label/plan.md
+<!-- SPECKIT END -->
