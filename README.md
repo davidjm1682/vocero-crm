@@ -150,6 +150,10 @@ Caddy emite el certificado HTTPS solo. Verifica con
    knowledge base con huecos a propósito y una corrida de Laboratorio de
    ejemplo — corre el Laboratorio y mira cómo los encuentra).
 3. La conexión de WhatsApp se hace después, en **Configuración → WhatsApp**.
+4. Mientras falte algo esencial (WhatsApp, agente de IA, marca), la Bandeja
+   muestra un checklist con el progreso y un enlace directo a cada pantalla.
+   Se colapsa solo al completarse, pero sigue accesible desde **Configuración
+   inicial** en el menú lateral.
 
 ## Conexión del número de WhatsApp
 

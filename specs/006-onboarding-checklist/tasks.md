@@ -35,7 +35,7 @@ repo `vocero-crm/`.
 Decisión 1) — el setup se limita a la lógica de cálculo de estado que todas
 las historias necesitan.
 
-- [ ] T001 Crear `src/server/onboarding/status.ts` con el tipo
+- [x] T001 Crear `src/server/onboarding/status.ts` con el tipo
   `OnboardingStatus`/`OnboardingStep` (según `data-model.md`) y la constante
   de los 3 pasos con su `label`/`href` (WhatsApp → `/settings/whatsapp`,
   Agente → `/agent`, Marca → `/settings/branding`)
@@ -51,13 +51,13 @@ prerequisito bloqueante de las 3 historias.
 
 **⚠️ CRITICAL**: Ninguna historia puede implementarse sin esto completo.
 
-- [ ] T002 Implementar `getOnboardingStatus(organizationId)` en
+- [x] T002 Implementar `getOnboardingStatus(organizationId)` en
   `src/server/onboarding/status.ts` — consulta `metaCredentials` (`status =
   "connected"`), `agentProfile` (`enabled` true y `tone`/`instructions` no
   vacíos) y `organization` (`name`/`logo` distintos del default, ver
   research.md Decisión 2) usando `scoped()`, calcula `completedCount`/
   `totalCount`/`percent`, y devuelve el `OnboardingStatus` completo
-- [ ] T003 Crear `GET /api/onboarding` en `src/app/api/onboarding/route.ts`
+- [x] T003 Crear `GET /api/onboarding` en `src/app/api/onboarding/route.ts`
   — usa `withAuth`, llama a `getOnboardingStatus(session.organizationId)` y
   devuelve el resultado tal cual (contrato en `contracts/onboarding-api.md`)
 
@@ -77,11 +77,11 @@ completado), entrar a `/inbox` y verificar que el checklist aparece con
 todos los pasos pendientes y 0% de progreso; hacer clic en un paso y
 verificar que navega a la pantalla correcta.
 
-- [ ] T004 [P] [US1] Crear `src/components/onboarding/onboarding-checklist.tsx`
+- [x] T004 [P] [US1] Crear `src/components/onboarding/onboarding-checklist.tsx`
   — hace fetch a `/api/onboarding`, muestra los 3 pasos con su estado
   (pendiente/completo) y una barra de progreso con el `percent` recibido;
   cada paso pendiente es un `Link` al `href` correspondiente
-- [ ] T005 [US1] Montar `OnboardingChecklist` en
+- [x] T005 [US1] Montar `OnboardingChecklist` en
   `src/app/(app)/inbox/page.tsx` (o en el componente cliente que envuelve la
   bandeja), visible solo mientras `percent < 100`
 
@@ -99,12 +99,12 @@ checklist sin edición manual, incluyendo el caso de deshacer un paso.
 ninguna acción adicional. Desconectar WhatsApp y verificar que vuelve a
 pendiente.
 
-- [ ] T006 [US2] Verificar (sin cambios de código esperados, ya que
+- [x] T006 [US2] Verificar (sin cambios de código esperados, ya que
   `OnboardingChecklist` hace fetch fresco en cada montaje) que navegar desde
   `/settings/whatsapp` de vuelta a `/inbox` dispara un nuevo fetch a
   `/api/onboarding` — si el componente cachea el resultado entre
   navegaciones, corregirlo para que refetchee al montarse
-- [ ] T007 [P] [US2] Test unitario en `tests/unit/onboarding-status.test.ts`
+- [x] T007 [P] [US2] Test unitario en `tests/unit/onboarding-status.test.ts`
   que cubra: paso completo cuando existe la condición, paso pendiente
   cuando NO existe (incluyendo el caso de "se desconectó después de estar
   conectado" — misma función, dos llamadas con datos distintos), y el
@@ -124,17 +124,17 @@ forma prominente, pero sigue accesible desde un punto de acceso persistente.
 no aparece en `/inbox`, y luego encontrar el punto de acceso persistente en
 el nav para volver a verlo completo.
 
-- [ ] T008 [US3] En `src/components/app-nav.tsx`, agregar un fetch
+- [x] T008 [US3] En `src/components/app-nav.tsx`, agregar un fetch
   condicional a `/api/onboarding` en el mismo `useEffect` que ya resuelve
   `hasAgency` (patrón de 004), y mostrar un link "Configuración inicial" (o
   similar) hacia una vista de checklist completo — visible siempre, pero
   con un indicador de progreso solo mientras `percent < 100`
-- [ ] T009 [US3] Crear la vista de checklist completo accesible desde ese
+- [x] T009 [US3] Crear la vista de checklist completo accesible desde ese
   link (puede ser una ruta nueva bajo `/settings` o un modal que reutilice
   `OnboardingChecklist` con los 3 pasos siempre visibles, no solo mientras
   falten) — decisión de implementación libre siempre que cumpla FR-008
   (accesible bajo demanda con el estado de cada paso)
-- [ ] T010 [P] [US3] Test unitario o de componente que cubra que
+- [x] T010 [P] [US3] Test unitario o de componente que cubra que
   `OnboardingChecklist`/la vista completa muestra los 3 pasos con su estado
   incluso cuando todos están completos (no se vacía ni se rompe al llegar a
   100%)
@@ -149,18 +149,18 @@ independientemente verificables.
 **Purpose**: Verificación de comportamiento en vivo (Principio IX) y cierre
 del gate técnico completo antes de declarar la feature "Hecha".
 
-- [ ] T011 Escribir el guion E2E `tests/e2e/006-onboarding-checklist.md`
+- [x] T011 Escribir el guion E2E `tests/e2e/006-onboarding-checklist.md`
   cubriendo los 5 escenarios de `quickstart.md` (organización nueva,
   actualización automática, organización preexistente, deshacer un paso,
   acceso persistente)
-- [ ] T012 Ejecutar el self-test de comportamiento en vivo (navegador real o
+- [x] T012 Ejecutar el self-test de comportamiento en vivo (navegador real o
   guion manual) contra los 5 escenarios de T011 y corregir hasta verde
   (loop de auto-corrección, Principio IX) — prestar especial atención al
   escenario de "organización preexistente" con datos reales ya cargados
-- [ ] T013 Ejecutar el gate técnico completo:
+- [x] T013 Ejecutar el gate técnico completo:
   `pnpm typecheck && pnpm lint && pnpm build && pnpm test`, corrigiendo
   cualquier fallo hasta verde
-- [ ] T014 Actualizar `README.md` con una sección breve sobre el checklist
+- [x] T014 Actualizar `README.md` con una sección breve sobre el checklist
   de onboarding, siguiendo el estilo de las secciones ya existentes
 
 ---

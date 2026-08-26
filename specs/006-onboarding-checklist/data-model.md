@@ -5,11 +5,11 @@ tablas ya existentes.
 
 ## Fuentes de lectura (existentes, sin cambio)
 
-| Tabla | Campo(s) usados | Paso que informa |
+| Fuente | Campo(s) usados | Paso que informa |
 |---|---|---|
 | `metaCredentials` | `status` (existe fila con `status = "connected"`) | Conectar WhatsApp |
 | `agentProfile` | `enabled`, `tone`, `instructions` | Configurar agente de IA |
-| `organization` | `name`, `logo` | Personalizar marca |
+| `getBranding(organizationId)` (`src/server/branding.ts`) | `name`, `favicon` (dentro de `organization.metadata`, NO las columnas `organization.name`/`.logo`) | Personalizar marca |
 
 ## Entidades transitorias (no persistidas)
 

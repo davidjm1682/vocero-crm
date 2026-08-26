@@ -26,15 +26,22 @@ pide evitar explícitamente).
   organización con `status = "connected"`.
 - **Agente de IA configurado**: `agentProfile.enabled === true` Y
   (`tone` no vacío O `instructions` no vacío).
-- **Marca personalizada**: `organization.name` distinto del nombre generado
-  automáticamente al crear la organización (patrón `"Negocio de {nombre}"` o
-  `"Mi negocio"`, ver `src/server/auth/on-signup.ts`) O `organization.logo`
-  no nulo.
+- **Marca personalizada**: vía `getBranding(organizationId)`
+  (`src/server/branding.ts`) — `branding.name !== "Vocero"` (el default) O
+  `branding.favicon !== null`.
 
 **Rationale**: Son señales ya usadas o expuestas en otras partes del código
-(`GET /api/agent/profile` ya calcula algo análogo con `aiConfigured`; el
-patrón de nombre por defecto ya existe en `onUserCreated`). No requieren
-inferencia adicional ni un nuevo campo booleano "listo" en ninguna tabla.
+(`GET /api/agent/profile` ya calcula algo análogo con `aiConfigured`).
+**Corrección tras verificación en vivo**: la primera versión de este
+criterio de marca leía `organization.name`/`organization.logo` directamente
+— resultó ser la fuente EQUIVOCADA. Lo que edita "Settings → Marca" (nombre
+visible del CRM, acento, favicon) vive en `organization.metadata` (JSON),
+accedido exclusivamente vía `getBranding()`/`saveBranding()`
+(`src/server/branding.ts`); `organization.name`/`.logo` son columnas de
+Better Auth sin relación con el white-labeling visible. Este error solo se
+detectó ejerciendo el flujo real (Principio IX) — cambiar el nombre del
+negocio vía la API real no marcaba el paso como completo hasta corregir la
+fuente de lectura.
 
 **Alternatives considered**: Exigir que el agente tenga TODOS los campos
 (tono Y instrucciones Y reglas de escalado) para contar como "configurado"

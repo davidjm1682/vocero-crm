@@ -7,6 +7,7 @@ import { matchesQuery } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { formatTime, previewText } from "./helpers";
 
 const STAGE_DOT: Record<string, string> = {
@@ -32,23 +33,26 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="text-sm font-medium">Sin conversaciones todavía</p>
-      <p className="text-xs text-text-3">
-        Cuando alguien escriba a tu número de WhatsApp, su conversación
-        aparecerá aquí en tiempo real.
-      </p>
-      {!failed && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={seeding}
-          onClick={() => void seed()}
-        >
-          <Sparkles className="h-4 w-4" strokeWidth={1.7} />
-          {seeding ? "Cargando demo…" : "Cargar datos de demostración"}
-        </Button>
-      )}
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-center">
+      <OnboardingChecklist />
+      <div className="flex flex-1 flex-col items-center justify-center gap-3">
+        <p className="text-sm font-medium">Sin conversaciones todavía</p>
+        <p className="text-xs text-text-3">
+          Cuando alguien escriba a tu número de WhatsApp, su conversación
+          aparecerá aquí en tiempo real.
+        </p>
+        {!failed && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={seeding}
+            onClick={() => void seed()}
+          >
+            <Sparkles className="h-4 w-4" strokeWidth={1.7} />
+            {seeding ? "Cargando demo…" : "Cargar datos de demostración"}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
