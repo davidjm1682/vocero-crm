@@ -9,6 +9,9 @@ export const JUDGE_MARKER = "[JUEZ]";
 /** Marcador del prompt de resumen de corrida: el ai-mock lo usa para despachar. */
 export const RUN_SUMMARY_MARKER = "[RESUMEN_CORRIDA]";
 
+/** Marcador del prompt del asistente de configuración (005): el ai-mock lo usa para despachar. */
+export const CONFIG_ASSISTANT_MARKER = "[ASISTENTE_CONFIG]";
+
 export function renderKb(entries: KbEntry[]): string {
   if (entries.length === 0) return "(knowledge base vacío)";
   return entries

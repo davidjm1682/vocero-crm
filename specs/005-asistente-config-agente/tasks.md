@@ -37,10 +37,10 @@ rutas son relativas a la raíz del repo `vocero-crm/`.
 Decisión 2) — el setup se limita a la lógica de dominio compartida que todas
 las historias necesitan.
 
-- [ ] T001 Definir el schema Zod de request/response del asistente
+- [x] T001 Definir el schema Zod de request/response del asistente
   (`ConfigAssistantAnswers`, `ConfigAssistantProposal`) en
   `src/server/ai/config-assistant.ts`, según `contracts/config-assistant-api.md`
-- [ ] T002 [P] Escribir la función de construcción de prompt
+- [x] T002 [P] Escribir la función de construcción de prompt
   `buildConfigAssistantPrompt(answers)` en
   `src/server/ai/config-assistant.ts` — arma los mensajes de sistema/usuario
   a partir de las 4 respuestas del wizard (canal, negocio, tono, escalado)
@@ -58,12 +58,12 @@ poder generar una propuesta.
 
 **⚠️ CRITICAL**: Ninguna historia puede implementarse sin esto completo.
 
-- [ ] T003 Implementar `generateConfigAssistantProposal(organizationId, answers)`
+- [x] T003 Implementar `generateConfigAssistantProposal(organizationId, answers)`
   en `src/server/ai/config-assistant.ts` — llama a `chatJson` (de
   `src/lib/ai/index.ts`) con `organizationId` y el prompt de T002, valida la
   salida contra el schema de T001, y devuelve `ChatJsonResult<ConfigAssistantProposal>`
   tal cual (sin re-envolver el tipo de error)
-- [ ] T004 Crear `POST /api/agent/config-assistant` en
+- [x] T004 Crear `POST /api/agent/config-assistant` en
   `src/app/api/agent/config-assistant/route.ts` — usa `withAuth`, valida el
   body contra el schema de request (T001), llama a
   `generateConfigAssistantProposal` con `session.organizationId`, y traduce
@@ -89,28 +89,28 @@ un perfil de agente sin tono/instrucciones, completar el wizard de punta a
 punta y verificar que los campos de Settings → Agente quedan poblados tras
 confirmar.
 
-- [ ] T005 [P] [US1] Crear `src/components/agent/config-assistant-dialog.tsx`
+- [x] T005 [P] [US1] Crear `src/components/agent/config-assistant-dialog.tsx`
   — modal/diálogo con las 4 preguntas guiadas (canal, negocio, tono,
   escalado) como pasos secuenciales de un formulario controlado en estado de
   React (research.md, Decisión 4); botón "Siguiente" deshabilitado hasta que
   el paso actual tenga respuesta no vacía
-- [ ] T006 [US1] En `config-assistant-dialog.tsx`, al confirmar la última
+- [x] T006 [US1] En `config-assistant-dialog.tsx`, al confirmar la última
   pregunta, llamar a `POST /api/agent/config-assistant` con las 4 respuestas
   y mostrar estado de carga mientras se genera la propuesta
-- [ ] T007 [US1] En `config-assistant-dialog.tsx`, mostrar la pantalla de
+- [x] T007 [US1] En `config-assistant-dialog.tsx`, mostrar la pantalla de
   revisión con el `proposal` recibido (tono/instrucciones/reglas de
   escalado) en texto de solo lectura, con botones "Aplicar" y "Descartar"
   (cumple FR-012: revisar antes de guardar)
-- [ ] T008 [US1] Al presionar "Aplicar", invocar la función `onSave` ya
+- [x] T008 [US1] Al presionar "Aplicar", invocar la función `onSave` ya
   existente de `ProfileSection` (reutilizando el `PUT /api/agent/profile`
   actual) con el `proposal` generado, cerrar el diálogo y refrescar el
   perfil visible
-- [ ] T009 [US1] En `src/components/agent/agent-client.tsx`, agregar el
+- [x] T009 [US1] En `src/components/agent/agent-client.tsx`, agregar el
   punto de entrada al asistente (botón "Configurar con el asistente" o
   similar) junto a `ProfileSection`, que abre `ConfigAssistantDialog`;
   deshabilitado cuando `aiConfigured` es `false` (reutiliza la señal ya
   devuelta por `GET /api/agent/profile`)
-- [ ] T010 [P] [US1] Test unitario en `tests/unit/config-assistant.test.ts`
+- [x] T010 [P] [US1] Test unitario en `tests/unit/config-assistant.test.ts`
   para `buildConfigAssistantPrompt` y `generateConfigAssistantProposal` —
   cubre construcción de mensajes y propagación de un `ChatJsonResult` exitoso
 
@@ -130,17 +130,17 @@ campo de tono desde `ProfileSection` sin pasar por el asistente, y verificar
 que el cambio se guarda igual que hoy. Luego reabrir el asistente y verificar
 que aparece la advertencia de sobrescritura antes de aplicar.
 
-- [ ] T011 [US2] Verificar (sin cambios de código esperados, solo prueba) que
+- [x] T011 [US2] Verificar (sin cambios de código esperados, solo prueba) que
   `ProfileSection` en `agent-client.tsx` permite editar y guardar tono,
   instrucciones y reglas de escalado tras haber sido poblados por el
   asistente — si algo interfiere, corregirlo en `agent-client.tsx`
-- [ ] T012 [US2] En `config-assistant-dialog.tsx`, antes de mostrar la
+- [x] T012 [US2] En `config-assistant-dialog.tsx`, antes de mostrar la
   primera pregunta, verificar si el perfil actual ya tiene tono o
   instrucciones no vacíos (recibido como prop desde `agent-client.tsx`) y, si
   es así, mostrar una advertencia de que continuar sobrescribirá el
   contenido existente, requiriendo una confirmación explícita para avanzar
   (FR-006)
-- [ ] T013 [P] [US2] Test unitario en `tests/unit/config-assistant.test.ts`
+- [x] T013 [P] [US2] Test unitario en `tests/unit/config-assistant.test.ts`
   (o archivo de componente si el proyecto ya prueba componentes React) que
   cubra la lógica de detección de "perfil ya configurado" usada por T012
 
@@ -160,15 +160,15 @@ configuradas, entrar a Settings → Agente y verificar que el punto de entrada
 del asistente aparece deshabilitado con el mensaje esperado; configurar el
 proveedor y verificar que pasa a estar disponible sin pasos adicionales.
 
-- [ ] T014 [US3] En `agent-client.tsx`, cuando `aiConfigured` es `false`,
+- [x] T014 [US3] En `agent-client.tsx`, cuando `aiConfigured` es `false`,
   mostrar junto al punto de entrada del asistente (T009) un mensaje
   consistente con el ya existente para el agente principal ("Configura tu
   proveedor de IA para activar..."), en vez de solo deshabilitar el botón
   sin explicación
-- [ ] T015 [US3] Verificar que `POST /api/agent/config-assistant` devuelve
+- [x] T015 [US3] Verificar que `POST /api/agent/config-assistant` devuelve
   409 `not_configured` de forma defensiva incluso si la UI llegara a
   invocarlo con el botón deshabilitado (doble verificación servidor/cliente)
-- [ ] T016 [P] [US3] Test unitario en `tests/unit/config-assistant.test.ts`
+- [x] T016 [P] [US3] Test unitario en `tests/unit/config-assistant.test.ts`
   que cubra el caso `not_configured` de `generateConfigAssistantProposal`
   (sin proveedor configurado en la organización)
 
@@ -182,16 +182,16 @@ verificables.
 **Purpose**: Verificación de comportamiento en vivo (Principio IX) y cierre
 del gate técnico completo antes de declarar la feature "Hecha".
 
-- [ ] T017 Escribir el guion E2E `tests/e2e/005-asistente-config-agente.md`
+- [x] T017 Escribir el guion E2E `tests/e2e/005-asistente-config-agente.md`
   cubriendo los 5 escenarios de `quickstart.md` (camino feliz, edición
   manual posterior, sin proveedor de IA, camino infeliz por fallo del
   proveedor, reconfiguración con advertencia)
-- [ ] T018 Ejecutar `pnpm test:e2e` contra `ai-mock` con los 5 escenarios de
+- [x] T018 Ejecutar `pnpm test:e2e` contra `ai-mock` con los 5 escenarios de
   T017 y corregir hasta verde (loop de auto-corrección, Principio IX)
-- [ ] T019 Ejecutar el gate técnico completo:
+- [x] T019 Ejecutar el gate técnico completo:
   `pnpm typecheck && pnpm lint && pnpm build && pnpm test`, corrigiendo
   cualquier fallo hasta verde
-- [ ] T020 Actualizar `README.md` con una sección breve sobre el asistente
+- [x] T020 Actualizar `README.md` con una sección breve sobre el asistente
   conversacional de configuración del agente, siguiendo el estilo de la
   sección "Panel de agencia multi-cliente" ya existente
 
