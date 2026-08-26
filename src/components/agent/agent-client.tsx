@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfigAssistantDialog } from "@/components/agent/config-assistant-dialog";
 
 type Profile = {
   enabled: boolean;
@@ -112,7 +113,11 @@ export function AgentClient() {
       )}
 
       <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 lg:grid-cols-2">
-        <ProfileSection profile={profile} onSave={saveProfile} />
+        <ProfileSection
+          profile={profile}
+          aiConfigured={aiConfigured}
+          onSave={saveProfile}
+        />
         <KbSection entries={entries} kbSize={kbSize} onChanged={() => void refetch()} />
         <OpenAiKeySection />
       </div>
@@ -236,13 +241,20 @@ function OpenAiKeySection() {
 
 function ProfileSection({
   profile,
+  aiConfigured,
   onSave,
 }: {
   profile: Profile;
+  aiConfigured: boolean;
   onSave: (patch: Partial<Profile>) => Promise<void>;
 }) {
   const [form, setForm] = useState(profile);
+  const [showAssistant, setShowAssistant] = useState(false);
   useEffect(() => setForm(profile), [profile]);
+
+  const hasExistingContent = Boolean(
+    profile.tone?.trim() || profile.instructions?.trim() || profile.escalationRules?.trim()
+  );
 
   return (
     <Card>
@@ -253,6 +265,37 @@ function ProfileSection({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!aiConfigured}
+            onClick={() => setShowAssistant(true)}
+            className="w-full justify-center gap-2"
+          >
+            <Sparkles className="h-4 w-4" /> Configurar con el asistente
+          </Button>
+          {!aiConfigured && (
+            <p className="text-xs text-muted-foreground">
+              Configura tu proveedor de IA para activar el asistente de
+              configuración.
+            </p>
+          )}
+        </div>
+        {showAssistant && (
+          <ConfigAssistantDialog
+            hasExistingContent={hasExistingContent}
+            onCancel={() => setShowAssistant(false)}
+            onApply={async (proposal) => {
+              await onSave({
+                tone: proposal.tone,
+                instructions: proposal.instructions,
+                escalationRules: proposal.escalationRules,
+              });
+              setShowAssistant(false);
+            }}
+          />
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="agent-name">Nombre del agente</Label>
           <Input

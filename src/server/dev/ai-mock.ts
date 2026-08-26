@@ -1,4 +1,8 @@
-import { JUDGE_MARKER, RUN_SUMMARY_MARKER } from "@/server/ai/prompts";
+import {
+  CONFIG_ASSISTANT_MARKER,
+  JUDGE_MARKER,
+  RUN_SUMMARY_MARKER,
+} from "@/server/ai/prompts";
 
 /**
  * Proveedor LLM determinista para el self-test (contrato mocks.md).
@@ -41,6 +45,19 @@ export function aiMockCompletion(messages: InMessage[]): string {
       });
     }
     return JSON.stringify({ veredicto: "verde", hallazgos: [] });
+  }
+
+  // Asistente de configuración del agente (005): propuesta determinista que
+  // cumple el schema {tone, instructions, escalationRules} a partir de las
+  // 4 respuestas guiadas.
+  if (system.includes(CONFIG_ASSISTANT_MARKER)) {
+    return JSON.stringify({
+      tone: "Cercano, cálido y profesional. Evita el exceso de emojis.",
+      instructions:
+        `Eres el asistente de un negocio descrito así: "${lastUser.slice(0, 300)}". Responde dudas de clientes con base en el conocimiento configurado.`,
+      escalationRules:
+        "Escala a un humano ante solicitudes de reembolso o quejas sobre un pedido.",
+    });
   }
 
   // Resumen de corrida del Laboratorio: interpretación determinista.

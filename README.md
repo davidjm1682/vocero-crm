@@ -272,6 +272,21 @@ ya no estén activos sin borrar sus datos.
 UPDATE agency SET plan = 'scale', plan_limit = 30 WHERE id = 'agency_xxxxxxxxxxxxxxxxxxxx';
 ```
 
+## Asistente conversacional de configuración del agente
+
+Desde la pestaña **Agente**, el botón **"Configurar con el asistente"**
+abre un chat guiado de 4 preguntas (canal principal de atención, a qué se
+dedica el negocio, cómo debe sonar el agente, cuándo escalar a un humano).
+Al terminar, genera una propuesta de tono, instrucciones y reglas de
+escalado que puedes revisar antes de aplicarla — se guarda en los mismos
+campos de texto que ya existen, y sigues pudiendo editarlos manualmente
+después. Si el perfil ya tenía contenido, se pide confirmación antes de
+sobrescribirlo.
+
+Usa el mismo proveedor de IA ya configurado por la organización (ver abajo);
+sin uno configurado, el botón aparece deshabilitado con el mismo mensaje que
+ya muestra el agente principal en esa condición.
+
 ## Configuración de la IA
 
 En las variables de la instancia:
