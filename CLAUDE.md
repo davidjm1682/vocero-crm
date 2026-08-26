@@ -142,5 +142,5 @@ repo ya registra. Los subagentes con `memory: project` usan
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/005-asistente-config-agente/plan.md
+at specs/006-onboarding-checklist/plan.md
 <!-- SPECKIT END -->

@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Inbox,
   Kanban,
+  ListChecks,
   LogOut,
   Settings,
   Sparkles,
@@ -56,6 +57,7 @@ export function AppNav({
   const router = useRouter();
   const [unread, setUnread] = useState(0);
   const [hasAgency, setHasAgency] = useState(false);
+  const [onboardingPercent, setOnboardingPercent] = useState<number | null>(null);
 
   async function refetchUnread() {
     const res = await fetch("/api/conversations").catch(() => null);
@@ -74,6 +76,14 @@ export function AppNav({
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { agency: unknown } | null) => setHasAgency(!!data?.agency))
       .catch(() => setHasAgency(false));
+    // 006 — el link de checklist de onboarding siempre está visible; el
+    // porcentaje solo decora mientras falte algún paso.
+    fetch("/api/onboarding")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { percent: number } | null) =>
+        setOnboardingPercent(data?.percent ?? null)
+      )
+      .catch(() => setOnboardingPercent(null));
   }, []);
 
   const navItems = hasAgency
@@ -161,6 +171,30 @@ export function AppNav({
       </nav>
 
       <div className="flex-1" />
+
+      {onboardingPercent !== null && (
+        <Link
+          href="/onboarding"
+          className={cn(
+            "flex items-center gap-[11px] rounded-sm px-2.5 py-2 text-sm font-medium transition-colors",
+            pathname.startsWith("/onboarding")
+              ? "bg-brand-tint font-semibold text-brand-text"
+              : "text-text-2 hover:bg-accent"
+          )}
+        >
+          <ListChecks
+            className={cn(
+              "h-[18px] w-[18px]",
+              pathname.startsWith("/onboarding") ? "text-brand" : "text-text-3"
+            )}
+            strokeWidth={1.7}
+          />
+          <span className="flex-1">Configuración inicial</span>
+          {onboardingPercent < 100 && (
+            <span className="text-[11px] text-text-3">{onboardingPercent}%</span>
+          )}
+        </Link>
+      )}
 
       <Link
         href="/settings"
