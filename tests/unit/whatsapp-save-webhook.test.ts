@@ -43,6 +43,10 @@ vi.mock("@/lib/auth/session", () => ({
   getSessionOrNull: async () => ({ userId: "usr_1", organizationId: "org_a", role: sesion.role }),
 }));
 vi.mock("@/server/channels/enabled", () => ({ isChannelEnabled: () => false }));
+// 080: la comprobación de «una sola fuente» consulta la base; estas pruebas no la usan.
+vi.mock("@/server/whatsapp-zernio/source", () => ({
+  puedeConectarFuente: async () => ({ ok: true }),
+}));
 vi.mock("@/server/whatsapp/credentials", () => ({
   desconectarCanal: disconnect,
   getCredentialsByOrg: async () => creds.current,

@@ -1,3 +1,4 @@
+import { puedeConectarFuente } from "@/server/whatsapp-zernio/source";
 import { randomInt } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
@@ -258,6 +259,11 @@ export async function completarAltaEmbebida(input: {
   /** El PIN que ya tenía el número; sin él, se genera uno. */
   pin: string | null;
 }): Promise<ResultadoAlta> {
+  // 080: una organización tiene UNA fuente de WhatsApp. Antes de gastar el
+  // código de Meta, se comprueba que no tenga ya el suyo por Zernio.
+  const puede = await puedeConectarFuente(input.organizationId, "meta");
+  if (!puede.ok) throw new EmbeddedSignupError("source_conflict", puede.mensaje, 409);
+
   const token = await canjearCodigo(input.code);
   const numero = await resolverNumero(token, input.wabaId, input.phoneNumberId);
   const pin = input.pin ?? generarPin();

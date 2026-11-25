@@ -568,6 +568,31 @@ del cliente se conecta con el **override de callback por WABA**:
 > Graph** (botón "Sincronizar" en Configuración → Plantillas), así el modo
 > agencia ve las aprobaciones igual.
 
+## WhatsApp por Zernio (opcional)
+
+Además de conectar tu número directo con Meta, un negocio puede recibir y
+contestar su WhatsApp **por su propia cuenta de [Zernio](https://zernio.com)**.
+Cada negocio usa su cuenta y su llave de Zernio; Vocero no pone la suya.
+Se enciende con una variable de despliegue y se conecta en Ajustes → WhatsApp →
+«Por Zernio»:
+
+```bash
+WHATSAPP_ZERNIO=on
+```
+
+Una organización usa **una sola fuente** de WhatsApp a la vez: con Meta
+conectado hay que desconectarlo antes de conectar Zernio (y al revés). Entra a
+la misma bandeja: texto, fotos, audios, documentos, ubicaciones y contactos, y
+se contesta con texto, archivos, ubicación, contactos y citando un mensaje,
+con los acuses de entrega y lectura. La variable gobierna la configuración, no
+el tráfico: una conexión ya guardada sigue funcionando aunque la apagues.
+
+**Por ahora no hay plantillas por Zernio**: pasadas las 24 horas hay que
+esperar a que el cliente vuelva a escribir (llegan en la siguiente entrega).
+Está probado con simulador y con el sandbox de Zernio; falta confirmar con un
+número real el adjunto por `multipart`, la forma de los mensajes fallidos y las
+reacciones. Guion: `tests/e2e/us-whatsapp-zernio.md`.
+
 ## Canales opcionales: Instagram, Messenger y TikTok
 
 WhatsApp es el canal por el que existe Vocero y siempre está encendido. Los

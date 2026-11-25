@@ -129,6 +129,19 @@ export async function channelsStatus(organizationId: string): Promise<ChannelSta
     const base = { channel, lastInboundAt: ultimos[channel] ?? null };
 
     if (channel === "whatsapp") {
+      // 080: sin Meta, el WhatsApp del negocio puede venir por su cuenta de Zernio.
+      const porZernio = wa ? undefined : zernio.find((c) => c.channel === "whatsapp");
+      if (porZernio) {
+        filas.push({
+          ...base,
+          connected: true,
+          source: "zernio",
+          account: porZernio.name,
+          status: porZernio.status,
+          health: saludDe(porZernio, lecturas.get(porZernio.token) ?? null),
+        });
+        continue;
+      }
       filas.push({
         ...base,
         connected: Boolean(wa),

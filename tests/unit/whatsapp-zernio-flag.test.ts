@@ -35,6 +35,8 @@ describe("WHATSAPP_ZERNIO: la bandera de despliegue (080 · D2)", () => {
   });
 
   it("whatsappZernioEnabled() lee process.env directo, sin pasar por el validador de todo el entorno", () => {
+    // Sin la variable (la CI también corre con ella encendida): apagada.
+    vi.stubEnv("WHATSAPP_ZERNIO", "");
     expect(whatsappZernioEnabled()).toBe(false);
     vi.stubEnv("WHATSAPP_ZERNIO", "on");
     expect(whatsappZernioEnabled()).toBe(true);

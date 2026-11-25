@@ -73,6 +73,9 @@ No son decisiones nuestras; son las formas reales con las que hay que trabajar.
 | Plantillas propias: crear, listar, evento de estado | El sandbox solo tiene una plantilla bloqueada | Número real conectado |
 | Nota de voz saliente (`voice_note`, `.ogg` OPUS mono) | Requería un archivo OPUS | Cuenta de prueba |
 | Atribución de anuncios (`adAttribution`) | En el sandbox viene `null` | Un anuncio real de clic a WhatsApp |
+| Forma de `message.failed` (dónde viene el código y el motivo) | Nunca llegó uno en el sandbox; el código lo busca en `error(s)` del evento y del mensaje | Provocar un fallo real (p. ej. fuera de ventana) y mirar la entrega |
+| Formato del `sha256` de un adjunto (hex o base64) | El código acepta los dos | Una imagen real |
+| Una entrega de acuse que llega antes de guardarse el mensaje saliente | El acuse se ignora (igual que con Meta) | Medir con un envío real; si pasa, guardar el acuse |
 
 ## Decisiones
 

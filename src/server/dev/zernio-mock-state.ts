@@ -6,6 +6,8 @@
 
 export type ZernioSentMessage = {
   n: number;
+  /** 080 — El id que el mock le devolvió al CRM (el `wamid` de ese envío). */
+  messageId?: string;
   conversationId: string;
   accountId: string | null;
   message: string;
@@ -15,6 +17,16 @@ export type ZernioSentMessage = {
   /** Llave de idempotencia con la que llegó, si la hubo. */
   idempotencyKey: string | null;
   at: string;
+  /** 080 — Campos propios de WhatsApp, tal como llegaron. */
+  replyTo?: string;
+  location?: unknown;
+  contacts?: unknown;
+  attachmentType?: string;
+  voiceNote?: boolean;
+  /** 080 — El archivo subido por `multipart/form-data` (campo `attachment`). */
+  attachment?: { name: string; type: string; size: number };
+  /** 080 — Cómo llegó el cuerpo: `json` o `multipart`. */
+  via?: "json" | "multipart";
 };
 
 /** 072 — Una reacción que el CRM puso (`emoji`) o quitó (`emoji` = ""). */
@@ -66,13 +78,15 @@ type ZernioMockState = {
   down: string[];
   /** Cuántas veces se leyó cada ruta, para afirmar sobre la caché. */
   hits: Record<string, number>;
+  /** 080 — La llave «murió»: toda ruta autenticada responde 401 hasta apagarlo. */
+  dead: boolean;
 };
 
 const g = globalThis as unknown as { __voceroZernioMock?: ZernioMockState };
 
 export function zernioMockState(): ZernioMockState {
   if (!g.__voceroZernioMock) {
-    g.__voceroZernioMock = { seq: 0, sent: [], reactions: [], accounts: [], webhooks: [], down: [], hits: {} };
+    g.__voceroZernioMock = { seq: 0, sent: [], reactions: [], accounts: [], webhooks: [], down: [], hits: {}, dead: false };
   }
   // Un proceso que venía de antes de la 023 (recarga en caliente).
   const s = g.__voceroZernioMock;
@@ -81,6 +95,7 @@ export function zernioMockState(): ZernioMockState {
   s.webhooks ??= [];
   s.down ??= [];
   s.hits ??= {};
+  s.dead ??= false;
   return s;
 }
 
@@ -93,6 +108,7 @@ export function resetZernioMock(): void {
   s.reactions = [];
   s.down = [];
   s.hits = {};
+  s.dead = false;
 }
 
 /**
@@ -114,5 +130,5 @@ export function nextZernioMessageId(): string {
  */
 export function zernioTokenIsBad(authorization: string | null): boolean {
   const token = (authorization ?? "").replace(/^Bearer\s+/i, "");
-  return token.length === 0 || token.endsWith("-invalid");
+  return token.length === 0 || token.endsWith("-invalid") || zernioMockState().dead;
 }

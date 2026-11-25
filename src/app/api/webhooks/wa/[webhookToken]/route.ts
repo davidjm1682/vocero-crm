@@ -1,6 +1,9 @@
 import { getEnv } from "@/lib/env";
 import { isValidSignature, isValidWebhookToken } from "@/server/inbox/webhook";
 import { recibirEvento } from "@/server/webhooks/recibir";
+import { zernioSignatureFrom } from "@/server/zernio";
+import { isAuthenticZernioDelivery } from "@/server/zernio/dispatch";
+import { clasificarEntregaWa } from "@/server/whatsapp-zernio/entrega";
 
 /**
  * Webhook público de WhatsApp (contrato webhook.md).
@@ -39,19 +42,28 @@ export async function POST(req: Request, { params }: Params) {
     return new Response(null, { status: 404 });
   }
 
+  // 080: esta URL la usan Meta y, para el WhatsApp por Zernio, Zernio. Se lee
+  // el cuerpo primero para saber quién llama y validar SU firma.
   const rawBody = await req.text();
+  const entrega = clasificarEntregaWa(rawBody);
+
+  if (entrega.quien === "zernio") {
+    // Misma capa que las rutas de Instagram, Messenger y TikTok (023).
+    if (!(await isAuthenticZernioDelivery(rawBody, zernioSignatureFrom(req.headers)))) {
+      return new Response(null, { status: 401 });
+    }
+    return recibirEvento("zernio", entrega.evento, rawBody, "wa");
+  }
+
   const signature = req.headers.get("x-hub-signature-256");
   if (!isValidSignature(rawBody, signature, env.META_APP_SECRET)) {
     return new Response(null, { status: 401 });
   }
 
-  let payload: unknown;
-  try {
-    payload = JSON.parse(rawBody);
-  } catch {
+  if (entrega.payload === null) {
     // body ilegible: 200 igualmente (Meta reintenta y termina desactivando)
     return Response.json({ received: true });
   }
 
-  return recibirEvento("whatsapp", payload, rawBody, "webhook");
+  return recibirEvento("whatsapp", entrega.payload, rawBody, "webhook");
 }

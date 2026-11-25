@@ -42,16 +42,16 @@ Las pruebas de cada bloque se escriben **antes** que el código que prueban.
 
 ### Superficie
 
-- [ ] T021 Ruta `/api/webhooks/wa/[token]`: leer primero y decidir Meta o Zernio; `recibirEvento`; pruebas de firma, segmento, dedupe y reentrega tardía
-- [ ] T022 `/api/settings/whatsapp-zernio` (GET/PUT/DELETE, solo dueño, últimos 4, 404 sin bandera, exclusión con Meta)
-- [ ] T023 Ajustes → WhatsApp → «Por Zernio» y `health`
+- [x] T021 Ruta `/api/webhooks/wa/[token]`: leer primero y decidir Meta o Zernio; `recibirEvento`; pruebas de firma, segmento, dedupe y reentrega tardía
+- [x] T022 `/api/settings/whatsapp-zernio` (GET/PUT/DELETE, solo dueño, últimos 4, 404 sin bandera, exclusión con Meta)
+- [x] T023 Ajustes → WhatsApp → «Por Zernio» y `health`
 
 ### Simulador, E2E y documentación
 
-- [ ] T024 Simulador de Zernio: WhatsApp (conversaciones, mensajes, medios con 401, acuses desordenados) y caminos infelices
-- [ ] T025 `tests/e2e/us-whatsapp-zernio.md` y `scripts/e2e-whatsapp-zernio.mjs`
-- [ ] T026 `ci.yml` (`WHATSAPP_ZERNIO` en `completo`), `.env.example`, `AGENTS.md`, README, `CHANGELOG.md`, `specs/README.md`
-- [ ] T027 Los cuatro gates en las dos configuraciones y los E2E (`whatsapp-zernio`, `tiktok`, `messenger`, `despacho`, selftest)
+- [x] T024 Simulador de Zernio: WhatsApp (conversaciones, mensajes, medios con 401, acuses desordenados) y caminos infelices
+- [x] T025 `tests/e2e/us-whatsapp-zernio.md` y `scripts/e2e-whatsapp-zernio.mjs`
+- [x] T026 `ci.yml` (`WHATSAPP_ZERNIO` en `completo`), `.env.example`, `AGENTS.md`, README, `CHANGELOG.md`, `specs/README.md`
+- [x] T027 Los cuatro gates en las dos configuraciones y los E2E (`whatsapp-zernio`, `tiktok`, `messenger`, `despacho`, selftest)
 - [ ] T028 Prueba en vivo y bitácora: lo pendiente de verificación humana de la spec, con una cuenta de prueba
 
 ## Entrega 2 — plantillas

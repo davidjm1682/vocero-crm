@@ -7,6 +7,7 @@ import {
 } from "@/server/zernio/cuentas";
 import {
   WEBHOOK_PATH,
+  cubreWhatsapp,
   ZERNIO_CHANNELS,
   ZERNIO_SOCIAL_CHANNELS,
 } from "@/server/zernio/conexiones";
@@ -131,5 +132,27 @@ describe("080 · reparto de eventos (T008)", () => {
     expect(zernioTargetChannel(evento("tiktok"))).toBe("tiktok");
     expect(zernioTargetChannel(evento("telegram"))).toBeNull();
     expect(zernioTargetChannel(null)).toBeNull();
+  });
+});
+
+describe("080 · qué webhooks piden los acuses de WhatsApp", () => {
+  const todas = [
+    { channel: "whatsapp", accountRef: WA },
+    { channel: "instagram", accountRef: IG },
+  ];
+
+  it("el webhook que cubre la cuenta de WhatsApp los pide", () => {
+    expect(cubreWhatsapp(todas, [WA])).toBe(true);
+    expect(cubreWhatsapp(todas, [WA, IG])).toBe(true);
+  });
+
+  it("aunque la conexión de WhatsApp esté guardada con OTRA llave que ve la misma cuenta", () => {
+    // La llave B no tiene la conexión de WhatsApp, pero su webhook cubre esa cuenta.
+    expect(cubreWhatsapp(todas, [WA])).toBe(true);
+  });
+
+  it("el que solo cubre otras redes no los pide", () => {
+    expect(cubreWhatsapp(todas, [IG])).toBe(false);
+    expect(cubreWhatsapp([{ channel: "instagram", accountRef: IG }], [IG, WA])).toBe(false);
   });
 });

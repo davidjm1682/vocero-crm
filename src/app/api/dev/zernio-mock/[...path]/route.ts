@@ -79,6 +79,15 @@ export async function GET(req: Request, ctx: Ctx) {
     return Response.json({ webhooks: state.webhooks });
   }
 
+  // 080 — El adjunto de un mensaje de WhatsApp: como el real, responde 401 sin
+  // la llave de Zernio (la comprobación de arriba) y bytes con ella.
+  if (route.startsWith("whatsapp/media/")) {
+    const id = route.slice("whatsapp/media/".length);
+    return new Response(Buffer.from(`ARCHIVO-DE-PRUEBA-${id}`), {
+      headers: { "content-type": "image/jpeg" },
+    });
+  }
+
   // GET /inbox/conversations → lo que usa la validación de la llave.
   if (route === "inbox/conversations") {
     return Response.json({ data: [], hasMore: false });
@@ -97,6 +106,11 @@ export async function POST(req: Request, ctx: Ctx) {
     return Response.json({ ok: true });
   }
   // 023 — preparar el escenario desde el arnés.
+  if (route === "_dead") {
+    const body = (await req.json().catch(() => ({}))) as { dead?: boolean };
+    zernioMockState().dead = body.dead !== false;
+    return Response.json({ ok: true });
+  }
   if (route === "_accounts" || route === "_webhooks" || route === "_down") {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const state = zernioMockState();
@@ -144,20 +158,45 @@ export async function POST(req: Request, ctx: Ctx) {
     path[1] === "conversations" &&
     path[3] === "messages"
   ) {
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    // 080: el cuerpo llega como JSON o, con un archivo propio, como multipart.
+    const esMultipart = (req.headers.get("content-type") ?? "").startsWith("multipart/form-data");
+    let body: Record<string, unknown> = {};
+    let attachment: { name: string; type: string; size: number } | undefined;
+    if (esMultipart) {
+      const form = await req.formData().catch(() => null);
+      for (const [k, v] of form?.entries() ?? []) {
+        if (typeof v === "string") body[k] = v;
+        else attachment = { name: v.name, type: v.type, size: v.size };
+      }
+      for (const k of ["location", "contacts"]) {
+        if (typeof body[k] === "string") body[k] = JSON.parse(body[k] as string);
+      }
+      if (body.voiceNote !== undefined) body.voiceNote = body.voiceNote === "true";
+    } else {
+      body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    }
     const state = zernioMockState();
     const id = nextZernioMessageId();
     state.sent.push({
       n: state.seq,
+      messageId: id,
       conversationId: decodeURIComponent(path[2]!),
       accountId: body.accountId ? String(body.accountId) : null,
       message: String(body.message ?? ""),
       ...(body.messagingType ? { messagingType: String(body.messagingType) } : {}),
       ...(body.messageTag ? { messageTag: String(body.messageTag) } : {}),
+      ...(body.replyTo ? { replyTo: String(body.replyTo) } : {}),
+      ...(body.location ? { location: body.location } : {}),
+      ...(body.contacts ? { contacts: body.contacts } : {}),
+      ...(body.attachmentType ? { attachmentType: String(body.attachmentType) } : {}),
+      ...(body.voiceNote !== undefined ? { voiceNote: body.voiceNote === true } : {}),
+      ...(attachment ? { attachment } : {}),
+      via: esMultipart ? "multipart" : "json",
       idempotencyKey: req.headers.get("idempotency-key"),
       at: new Date().toISOString(),
     });
-    return Response.json({ message: { id } });
+    // `data.messageId` es la forma real; `message.id` la que leían los demás canales.
+    return Response.json({ success: true, data: { messageId: id }, message: { id } });
   }
 
   return Response.json({});

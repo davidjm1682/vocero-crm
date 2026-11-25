@@ -5,6 +5,22 @@ sigue el SemVer del [README](README.md#versiones): una menor trae funciones
 nuevas y actualizar es redesplegar. Desde 1.4.0, cada tag `vX.Y.Z` publica la
 imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
+## Sin publicar
+
+### Nuevo
+
+- **WhatsApp por Zernio** (spec 080), opcional y apagado por defecto: con
+  `WHATSAPP_ZERNIO=on`, Ajustes → WhatsApp ofrece conectar el número del negocio
+  por **su propia cuenta de Zernio** en vez de Meta directo. Entran texto, fotos,
+  audios, documentos, ubicaciones y contactos; se contesta con texto, archivos,
+  ubicación, contactos y citas, con acuses de entrega y lectura. Una organización
+  usa una sola fuente a la vez. **Todavía sin plantillas por Zernio** (siguiente
+  entrega). Probado con simulador y sandbox; falta confirmar con un número real.
+- **Migración `0033_whatsapp_por_zernio`**: crea la tabla
+  `whatsapp_zernio_credentials`. Solo agrega: las instancias con Meta no cambian.
+- `/api/webhooks/wa/<token>` recibe ahora a Meta y a Zernio por la misma URL;
+  cada uno se autentica con su propia firma.
+
 ## 2.12.0 — 2026-11-24
 
 El agente contesta una vez por ráfaga y el cliente ve «escribiendo…» desde

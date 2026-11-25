@@ -33,6 +33,10 @@ vi.mock("@/lib/auth/session", async (original) => ({
   ...(await original<typeof import("@/lib/auth/session")>()),
   requireSession: mocks.session,
 }));
+// 080: la comprobación de «una sola fuente» consulta la base; estas pruebas no la usan.
+vi.mock("@/server/whatsapp-zernio/source", () => ({
+  puedeConectarFuente: async () => ({ ok: true }),
+}));
 vi.mock("@/server/whatsapp/credentials", () => ({ saveCredentials: mocks.save }));
 vi.mock("@/server/whatsapp/connect", () => ({
   registerWebhookForNumber: mocks.webhook,

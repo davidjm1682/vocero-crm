@@ -13,6 +13,7 @@ import {
   unregisterWebhookForMessagingAccount,
   unregisterWebhookForNumber,
 } from "@/server/whatsapp/connect";
+import { puedeConectarFuente } from "@/server/whatsapp-zernio/source";
 import {
   webhookPath,
   webhookUrl,
@@ -60,6 +61,10 @@ const putSchema = z.object({
 export const PUT = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
+
+  // 080: una organización tiene UNA fuente de WhatsApp.
+  const puede = await puedeConectarFuente(session.organizationId, "meta");
+  if (!puede.ok) return apiError(409, "source_conflict", puede.mensaje);
 
   const check = await testConnection(body.data.phoneNumberId, body.data.token);
   if (!check.ok) {

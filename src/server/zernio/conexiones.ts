@@ -266,6 +266,14 @@ export function webhookAccountIds(
   return [...new Set(vistas.length > 0 ? vistas : group.map((c) => c.accountRef))];
 }
 
+/** Puro: ¿alguna de estas cuentas es la de una conexión de WhatsApp? */
+export function cubreWhatsapp(
+  all: readonly { channel: string; accountRef: string }[],
+  accountIds: readonly string[]
+): boolean {
+  return all.some((c) => c.channel === "whatsapp" && accountIds.includes(c.accountRef));
+}
+
 export type EnsureWebhookResult =
   | { ok: true; created: boolean; accounts: number }
   | { ok: false; code: string; message: string };
@@ -345,9 +353,10 @@ export async function ensureWebhookForOrg(
         acceptableUrls,
         accountIds,
         secret,
-        events: zernioWebhookEvents({
-          whatsapp: grupo.some((c) => c.channel === "whatsapp"),
-        }),
+        // Los acuses se piden en todo webhook que cubra una cuenta de WhatsApp,
+        // no solo en el de la llave con la que se guardó esa conexión: dos
+        // llaves de la misma cuenta de Zernio ven el mismo WhatsApp.
+        events: zernioWebhookEvents({ whatsapp: cubreWhatsapp(conns, accountIds) }),
       });
       created ||= r.created;
       for (const id of accountIds) cubiertas.add(id);

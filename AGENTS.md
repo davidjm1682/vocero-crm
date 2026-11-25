@@ -70,6 +70,7 @@ Banderas de despliegue (apagadas por defecto; su código viaja siempre en `main`
 |---|---|
 | `AGENDA=on` | Motor de citas: pantalla Citas, Ajustes → Agenda, `/api/bookings`, `/api/calendar/*`, `/api/bot/availability` y `/api/bot/bookings` (`src/server/agenda/flag.ts`) |
 | `CHANNELS=whatsapp,instagram,messenger,tiktok` | Canales extra: webhooks `/api/webhooks/ig`, `/api/webhooks/messenger` y `/api/webhooks/tiktok`, Ajustes → Estado, Instagram, Messenger y TikTok, credenciales por canal, distintivo en la bandeja (`src/server/channels/enabled.ts`) |
+| `WHATSAPP_ZERNIO=on` | WhatsApp por la cuenta de Zernio del negocio (080): pestaña «Por Zernio» en Ajustes → WhatsApp y `/api/settings/whatsapp-zernio`. Gobierna la configuración, no el tráfico: una conexión guardada sigue funcionando con la bandera apagada (`src/server/whatsapp-zernio/flag.ts`) |
 | `ATRIBUCION=on` | Guardado del `ctwa_clid`, reporte a la Conversions API de Meta, Ajustes → Anuncios y `/api/settings/capi` (`src/server/attribution/flag.ts`). El anuncio de origen se ve siempre, con o sin bandera |
 | `API_V1=on` | 069 — API pública `/api/v1/*` con llaves, el MCP en `/api/v1/mcp`, su OAuth (`/api/oauth/*`, `/oauth/authorize`, `.well-known`) y Ajustes → API y MCP (`src/server/api-v1/flag.ts`). Guía: `docs/api-v1.md` |
 
@@ -88,6 +89,7 @@ Apagada, cada superficie responde 404 (no 403). El despliegue en producción est
 | `mcp/` | 069 — Servidor MCP sin estado sobre la v1: cada herramienta arma una petición y la pasa al handler de la ruta v1 con la misma credencial; guías `configurar_vocero` y `probar_agente` (iguales a las skills de `plugin/vocero/`) | `servidor.ts`, `herramientas.ts`, `configuracion.ts`, `guia.ts`, `guia-probar.ts` |
 | `oauth/` | 069 — OAuth 2.1 mínimo para conectar el MCP desde claude.ai o ChatGPT: emisor = `APP_BASE_URL`, registro dinámico, PKCE S256, refresco que rota; los tokens `vat_` pasan por la misma puerta que las llaves | `nucleo.ts`, `servidor.ts`, `puerta.ts`, `autorizar.ts` |
 | `analytics/` | Números de Resultados (ventas, agente, anuncios, higiene) agregados en SQL; excluye el Laboratorio | `sales.ts`, `bot.ts`, `ads.ts`, `hygiene.ts`, `shared.ts` |
+| `whatsapp-zernio/` | 080 — Segunda fuente del canal `whatsapp` (la primera es Meta directo): el WhatsApp del negocio por SU cuenta de Zernio, tras `WHATSAPP_ZERNIO`. Una fuente por organización (`getWhatsappSource`) | `source.ts`, `credentials.ts`, `ingest.ts`, `status.ts`, `send.ts`, `entrega.ts`, `flag.ts` |
 | `attribution/` | De qué anuncio llegó cada conversación y reporte a la CAPI tras `ATRIBUCION` | `referral.ts`, `store.ts`, `conversions.ts`, `flag.ts` |
 | `auth/` | Registro cerrado tras la primera organización; alta del primer dueño con pipeline y perfil sembrados | `registration.ts`, `on-signup.ts` |
 | `bot/` | API de servicio para el cerebro: auth por `X-API-Key` o `Authorization: Bearer`, perfil (con `llm`), ficha, handoff, «quién responde» (avisos `sin_cerebro` y `apagado`) y, 036, el proxy del modelo (`/api/bot/llm`: reenvía tal cual con la llave de Ajustes → IA; 401/402 del proveedor la pausan) | `auth.ts`, `status.ts`, `profile.ts`, `llm-proxy.ts` |
