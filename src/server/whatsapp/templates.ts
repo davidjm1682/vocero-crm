@@ -17,6 +17,19 @@ import {
   markReconnectRequired,
 } from "@/server/whatsapp/credentials";
 import { callGraphSend, SendError } from "@/server/inbox/send";
+import { describeSendError } from "@/lib/meta/send-errors";
+import {
+  getWhatsappZernioCredentialsByAccountRef,
+  getWhatsappZernioCredentialsByOrg,
+  markWhatsappZernioReconnectRequired,
+  type WhatsappZernioCredentials,
+} from "@/server/whatsapp-zernio/credentials";
+import {
+  createZernioTemplate,
+  listZernioTemplates,
+  sendZernioTemplate,
+  zernioTemplateStatus,
+} from "@/server/whatsapp-zernio/templates";
 import { serializeMessage } from "@/server/inbox/ingest";
 import type { WebhookValue } from "@/server/inbox/webhook";
 
@@ -81,13 +94,9 @@ export async function createTemplate(
   const variableError = validateBodyVariables(input.body);
   if (variableError) throw new TemplateError("invalid", variableError);
 
+  // 080 · Entrega 2: el WhatsApp de la organización puede salir por Zernio.
   const creds = await getCredentialsByOrg(organizationId);
-  if (!creds) {
-    throw new TemplateError("not_connected", "Conecta tu número de WhatsApp primero");
-  }
-  if (creds.status === "reconnect_required") {
-    throw new TemplateError("reconnect_required", "Reconecta tu número antes de crear plantillas");
-  }
+  const zernio = creds ? null : await whatsappZernioConectado(organizationId);
 
   const name = input.name
     .toLowerCase()
@@ -104,7 +113,29 @@ export async function createTemplate(
     (_, i) => input.examples?.[i]?.trim() || `ejemplo ${i + 1}`
   );
   let waTemplateId: string | null = null;
+  let estadoInicial: TemplateRow["status"] = "pending";
+  if (zernio) {
+    try {
+      const r = await createZernioTemplate(zernio, {
+        name,
+        language: input.language,
+        category: input.category,
+        body: input.body,
+        examples,
+      });
+      waTemplateId = r.id;
+      estadoInicial = mapMetaStatus(r.status ?? undefined) ?? "pending";
+    } catch (err) {
+      throw await errorDeZernio(organizationId, err);
+    }
+  } else
   try {
+    if (!creds) {
+      throw new TemplateError("not_connected", "Conecta tu número de WhatsApp primero");
+    }
+    if (creds.status === "reconnect_required") {
+      throw new TemplateError("reconnect_required", "Reconecta tu número antes de crear plantillas");
+    }
     // 065: desde el split de 2026, las plantillas se crean en la Cuenta de
     // mensajes; en la de WhatsApp Meta responde #100/2388339.
     const res = await graphRequest<{ id?: string; status?: string }>(
@@ -138,7 +169,7 @@ export async function createTemplate(
       if (err.status === 0 || err.status >= 500) {
         throw new TemplateError("meta_unavailable", "Meta no está disponible ahora");
       }
-      if (esCuentaSinPlantillas(err) && !creds.messagingAccountId) {
+      if (esCuentaSinPlantillas(err) && !creds?.messagingAccountId) {
         throw new TemplateError(
           "meta_error",
           "Meta ya no crea plantillas en la cuenta de WhatsApp: ahora viven en la Cuenta de mensajes. Agrega su ID en Ajustes → WhatsApp (Business Settings › Cuentas › Cuentas de mensajes) y vuelve a intentarlo."
@@ -159,7 +190,7 @@ export async function createTemplate(
       language: input.language,
       category: input.category,
       body: input.body,
-      status: "pending",
+      status: estadoInicial,
       waTemplateId,
     })
     .onConflictDoUpdate({
@@ -171,7 +202,7 @@ export async function createTemplate(
       set: {
         category: input.category,
         body: input.body,
-        status: "pending",
+        status: estadoInicial,
         rejectionReason: null,
         waTemplateId,
         updatedAt: new Date(),
@@ -296,13 +327,21 @@ const TEMPLATE_FIELDS =
  */
 export async function syncTemplates(organizationId: string): Promise<number> {
   const creds = await getCredentialsByOrg(organizationId);
-  if (!creds) {
-    throw new TemplateError("not_connected", "Conecta tu número de WhatsApp primero");
-  }
+  const zernio = creds ? null : await whatsappZernioConectado(organizationId);
 
-  const cuenta = cuentaDePlantillas(creds);
   const remotes: RemoteTemplate[] = [];
-  try {
+  if (zernio) {
+    // 080 · Entrega 2: Zernio las lee en vivo de Meta, ya en su forma.
+    try {
+      remotes.push(...(await listZernioTemplates(zernio)));
+    } catch (err) {
+      throw await errorDeZernio(organizationId, err, "No se pudo consultar Zernio");
+    }
+  } else try {
+    if (!creds) {
+      throw new TemplateError("not_connected", "Conecta tu número de WhatsApp primero");
+    }
+    const cuenta = cuentaDePlantillas(creds);
     let after: string | undefined;
     // Paginado por cursor hasta que Meta no dé `paging.next`: una cuenta
     // verificada puede tener hasta 6.000 plantillas (60 páginas de 100). Se
@@ -478,6 +517,16 @@ export async function sendTemplate(input: {
   }
 
   const creds = await getCredentialsByOrg(input.organizationId);
+  const zernio = creds ? null : await whatsappZernioConectado(input.organizationId);
+  if (zernio) {
+    return enviarPorZernio(zernio, {
+      organizationId: input.organizationId,
+      conversation: row.conversation,
+      phone: row.contact.phone,
+      template,
+      values,
+    });
+  }
   if (!creds) throw new TemplateError("not_connected", "Sin número conectado");
   if (creds.status === "reconnect_required") {
     throw new TemplateError("reconnect_required", "Reconecta el número");
@@ -547,4 +596,153 @@ export async function sendTemplate(input: {
   });
 
   return { messageId: message.id };
+}
+
+// ---------------------------------------------------------------------------
+// 080 · Entrega 2 — WhatsApp por la cuenta de Zernio del negocio
+// ---------------------------------------------------------------------------
+
+/**
+ * Las credenciales de WhatsApp por Zernio, si la organización las tiene. Lanza
+ * si la llave murió: no se crea, sincroniza ni envía con una llave revocada.
+ */
+async function whatsappZernioConectado(
+  organizationId: string
+): Promise<WhatsappZernioCredentials | null> {
+  const z = await getWhatsappZernioCredentialsByOrg(organizationId);
+  if (z?.status === "reconnect_required") {
+    throw new TemplateError(
+      "reconnect_required",
+      "La llave de Zernio dejó de servir: reconecta WhatsApp en Configuración"
+    );
+  }
+  return z;
+}
+
+/** El código de WhatsApp dentro de un error de Zernio, si lo trae. */
+function codigoDeWhatsapp(details: unknown): number | null {
+  const d = details as { error?: { code?: unknown }; code?: unknown } | null | undefined;
+  for (const v of [d?.error?.code, d?.code]) {
+    const n = Number(v);
+    if (Number.isInteger(n) && n > 0) return n;
+  }
+  return null;
+}
+
+/**
+ * Un fallo de Zernio, en el vocabulario de plantillas: llave muerta → pedir
+ * reconectar; Zernio caído → reintentar; un rechazo (plantilla no aprobada,
+ * tope diario de un número nuevo…) → con su motivo, traducido si trae código.
+ */
+async function errorDeZernio(
+  organizationId: string,
+  err: unknown,
+  caido = "Zernio no está disponible ahora"
+): Promise<unknown> {
+  if (!(err instanceof MetaApiError)) return err;
+  if (err.isAuthError) {
+    await markWhatsappZernioReconnectRequired(organizationId);
+    return new TemplateError(
+      "reconnect_required",
+      "La llave de Zernio expiró o fue revocada: reconecta WhatsApp"
+    );
+  }
+  if (err.status === 0 || err.status >= 500) return new TemplateError("meta_unavailable", caido);
+  const code = codigoDeWhatsapp(err.details);
+  return new TemplateError(
+    "meta_error",
+    code !== null ? describeSendError(code, err.message) : err.message
+  );
+}
+
+async function enviarPorZernio(
+  creds: WhatsappZernioCredentials,
+  input: {
+    organizationId: string;
+    conversation: typeof schema.conversation.$inferSelect;
+    phone: string | null;
+    template: TemplateRow;
+    values: string[];
+  }
+): Promise<{ messageId: string }> {
+  if (!input.phone) {
+    throw new TemplateError(
+      "meta_error",
+      "Este contacto no tiene teléfono: por Zernio una plantilla solo se puede mandar a un número"
+    );
+  }
+  let res: { messageId: string; conversationId: string | null };
+  try {
+    res = await sendZernioTemplate(creds, {
+      phone: input.phone,
+      name: input.template.name,
+      language: input.template.language,
+      params: input.values,
+      idempotencyKey: newId("message"),
+    });
+  } catch (err) {
+    throw await errorDeZernio(input.organizationId, err);
+  }
+
+  const db = getDb();
+  const inserted = await db
+    .insert(schema.message)
+    .values({
+      id: newId("message"),
+      organizationId: input.organizationId,
+      conversationId: input.conversation.id,
+      waMessageId: res.messageId,
+      direction: "out",
+      type: "template",
+      text: renderBody(input.template.body, input.values),
+      status: "pending",
+      origin: "template",
+    })
+    .returning();
+  const message = inserted[0]!;
+
+  // La conversación de Zernio que abrió (o reusó) la plantilla: sin ella no se
+  // puede seguir contestando en ese hilo.
+  await db
+    .update(schema.conversation)
+    .set({
+      lastMessageAt: new Date(),
+      updatedAt: new Date(),
+      ...(res.conversationId && !input.conversation.channelThreadRef
+        ? { channelThreadRef: res.conversationId }
+        : {}),
+    })
+    .where(eq(schema.conversation.id, input.conversation.id));
+
+  publish(input.organizationId, {
+    type: "message.new",
+    data: { conversationId: input.conversation.id, message: serializeMessage(message) },
+  });
+  return { messageId: message.id };
+}
+
+/** `whatsapp.template.status_updated`: Meta revisó una plantilla de la cuenta. Jamás lanza. */
+export async function applyZernioTemplateEvent(payload: unknown): Promise<void> {
+  const cambio = zernioTemplateStatus(payload);
+  if (!cambio) return;
+  try {
+    const creds = await getWhatsappZernioCredentialsByAccountRef(cambio.accountRef);
+    if (!creds) return;
+    await getDb()
+      .update(schema.template)
+      .set({
+        status: cambio.status,
+        rejectionReason: cambio.status === "rejected" ? cambio.reason : null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.template.organizationId, creds.organizationId),
+          eq(schema.template.name, cambio.name),
+          eq(schema.template.language, cambio.language)
+        )
+      );
+  } catch (err) {
+    console.error("[whatsapp-zernio] no se pudo aplicar el estado de una plantilla:", err);
+  }
 }

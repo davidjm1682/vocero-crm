@@ -59,8 +59,20 @@ node --env-file=.env scripts/e2e-whatsapp-zernio.mjs
 
 ## Límites y fallos
 
-13. Fuera de las 24 horas → 409 `window_closed`, con el motivo dicho para Zernio
-    (sin plantillas por ahora), y sin llamar a Zernio.
+13. Fuera de las 24 horas → 409 `window_closed`, pidiendo una plantilla
+    aprobada, y sin llamar a Zernio.
+
+## Plantillas (entrega 2)
+
+13a. Sincronizar importa la plantilla aprobada que existía en la cuenta.
+13b. Crear una → 201 en revisión, y Zernio la recibe con la cuenta y el cuerpo.
+13c. `whatsapp.template.status_updated` la deja rechazada con su motivo, y luego
+     aprobada sin motivo.
+13d. Con la ventana cerrada, enviarla con un valor de menos → 422 sin llamar a
+     Zernio; con todos → sale por `POST /inbox/conversations` con el teléfono
+     sin «+», el idioma, los valores en orden e `Idempotency-Key`, y queda en el
+     hilo con los valores puestos.
+13e. Si Zernio la rechaza (ya no aprobada) → error legible y traducido.
 14. Zernio caído → 503 `meta_unavailable`. Llave revocada → `reconnect_required`,
     la conexión pide reconectar y los envíos se detienen; pegar una llave nueva
     reconecta y se vuelve a poder enviar.
@@ -70,5 +82,6 @@ node --env-file=.env scripts/e2e-whatsapp-zernio.mjs
 
 El simulador no prueba lo que solo Zernio sabe: el formato real del `sha256`,
 la forma de `message.failed`, el adjunto por `multipart`, `Idempotency-Key`,
-`reaction.received` y, en la entrega 2, las plantillas. Ver la spec,
+`reaction.received` y las respuestas reales de Zernio al listar y crear
+plantillas, y la forma de `whatsapp.template.status_updated`. Ver la spec,
 «No verificado».

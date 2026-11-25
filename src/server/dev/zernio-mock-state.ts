@@ -66,8 +66,34 @@ export type ZernioMockWebhook = {
   lastFiredAt: string | null;
 };
 
+/** 080 · Entrega 2 — Una plantilla de WhatsApp, con la forma de Meta. */
+export type ZernioMockTemplate = {
+  id: string;
+  accountId: string;
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  rejected_reason?: string;
+  components: { type: string; text?: string }[];
+};
+
+/** 080 · Entrega 2 — Una plantilla enviada por `POST /inbox/conversations`. */
+export type ZernioSentTemplate = {
+  messageId: string;
+  conversationId: string;
+  accountId: string | null;
+  participantId: string;
+  templateName: string;
+  templateLanguage: string;
+  templateParams: string[];
+  idempotencyKey: string | null;
+};
+
 type ZernioMockState = {
   seq: number;
+  templates: ZernioMockTemplate[];
+  sentTemplates: ZernioSentTemplate[];
   sent: ZernioSentMessage[];
   /** 072 */
   reactions: ZernioSentReaction[];
@@ -86,7 +112,7 @@ const g = globalThis as unknown as { __voceroZernioMock?: ZernioMockState };
 
 export function zernioMockState(): ZernioMockState {
   if (!g.__voceroZernioMock) {
-    g.__voceroZernioMock = { seq: 0, sent: [], reactions: [], accounts: [], webhooks: [], down: [], hits: {}, dead: false };
+    g.__voceroZernioMock = { seq: 0, sent: [], reactions: [], accounts: [], webhooks: [], down: [], hits: {}, dead: false, templates: [], sentTemplates: [] };
   }
   // Un proceso que venía de antes de la 023 (recarga en caliente).
   const s = g.__voceroZernioMock;
@@ -96,6 +122,8 @@ export function zernioMockState(): ZernioMockState {
   s.down ??= [];
   s.hits ??= {};
   s.dead ??= false;
+  s.templates ??= [];
+  s.sentTemplates ??= [];
   return s;
 }
 
@@ -109,6 +137,7 @@ export function resetZernioMock(): void {
   s.down = [];
   s.hits = {};
   s.dead = false;
+  s.sentTemplates = [];
 }
 
 /**

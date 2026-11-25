@@ -5,6 +5,7 @@ import { splitInbound, type RemoteAttachment } from "@/server/inbox/remote-media
 import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
 import { getWhatsappZernioCredentialsByAccountRef } from "@/server/whatsapp-zernio/credentials";
 import { processZernioWhatsappStatus } from "@/server/whatsapp-zernio/status";
+import { applyZernioTemplateEvent } from "@/server/whatsapp/templates";
 import { normalizeMx } from "@/lib/meta/client";
 
 /**
@@ -181,6 +182,12 @@ const sinArchivo = (kind: "location" | "contacts", payload: unknown): MediaInput
 
 /** Jamás lanza hacia el webhook: un evento malo no tumba las entregas buenas. */
 export async function processZernioWhatsappEvent(payload: unknown): Promise<void> {
+  // Entrega 2: Meta revisó una plantilla de la cuenta.
+  const evento = (payload as { event?: unknown } | null)?.event;
+  if (typeof evento === "string" && evento.startsWith("whatsapp.template.")) {
+    await applyZernioTemplateEvent(payload);
+    return;
+  }
   // Los acuses de envío (message.sent|delivered|read|failed) tienen su camino.
   if (typeof (payload as { event?: unknown } | null)?.event === "string" &&
       (payload as { event: string }).event !== "message.received") {

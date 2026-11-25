@@ -73,8 +73,8 @@ export type ChannelCapabilities = {
   quoteReplies: boolean;
   /**
    * 080 — ¿Se puede reabrir la conversación con una plantilla desde Vocero?
-   * WhatsApp por Meta, sí. WhatsApp por Zernio, todavía no (entrega 2). Los
-   * demás canales no tienen plantillas.
+   * WhatsApp sí, por Meta o por Zernio (entrega 2). Los demás canales no
+   * tienen plantillas.
    */
   templates: boolean;
 };
@@ -174,14 +174,11 @@ export function capabilitiesFor(channel: Channel): ChannelCapabilities {
 
 /**
  * 080 — Las capacidades de WhatsApp según de dónde salga: Meta directo o la
- * cuenta de Zernio del negocio. Ventana, adjuntos, ubicación, contactos, citas
- * y acuses son los mismos (verificados en el sandbox); lo que cambia es que por
- * Zernio aún no hay plantillas. Un compositor que solo ofrece lo que la fuente
- * puede no deja al operador intentar lo que va a fallar.
+ * cuenta de Zernio del negocio. Desde la entrega 2 son las mismas; se deja el
+ * punto único de decisión por si una fuente deja de admitir algo.
  */
-export function whatsappCapabilities(source: "meta" | "zernio" | null): ChannelCapabilities {
-  const base = CHANNEL_CAPABILITIES.whatsapp;
-  return source === "zernio" ? { ...base, templates: false } : base;
+export function whatsappCapabilities(_source: "meta" | "zernio" | null): ChannelCapabilities {
+  return CHANNEL_CAPABILITIES.whatsapp;
 }
 
 /** Mensaje de ventana cerrada de WhatsApp, según si la fuente tiene plantillas. */

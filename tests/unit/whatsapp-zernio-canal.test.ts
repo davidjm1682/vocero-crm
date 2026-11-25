@@ -16,6 +16,7 @@ import {
   ZERNIO_MESSAGE_EVENT,
   ZERNIO_REACTION_EVENT,
   ZERNIO_WHATSAPP_STATUS_EVENTS,
+  ZERNIO_WHATSAPP_TEMPLATE_EVENTS,
   coversAccount,
   zernioWebhookEvents,
   type ZernioWebhook,
@@ -94,6 +95,8 @@ describe("080 · eventos del webhook (T007)", () => {
       ZERNIO_MESSAGE_EVENT,
       ZERNIO_REACTION_EVENT,
       ...ZERNIO_WHATSAPP_STATUS_EVENTS,
+      // Entrega 2: también la revisión de plantillas.
+      ...ZERNIO_WHATSAPP_TEMPLATE_EVENTS,
     ]);
     expect([...ZERNIO_WHATSAPP_STATUS_EVENTS]).toEqual([
       "message.sent",

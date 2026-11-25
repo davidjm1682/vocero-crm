@@ -16,7 +16,7 @@ describe("080 · capacidades de WhatsApp por fuente (T019)", () => {
     expect(whatsappCapabilities(null)).toBe(CHANNEL_CAPABILITIES.whatsapp);
   });
 
-  it("por Zernio: lo verificado (ventana, adjuntos, ubicación, contactos, citas, acuses) sí; plantillas aún no", () => {
+  it("por Zernio: lo mismo que por Meta, plantillas incluidas desde la entrega 2", () => {
     const c = whatsappCapabilities("zernio");
     expect(c).toMatchObject({
       windowMs: CHANNEL_CAPABILITIES.whatsapp.windowMs,
@@ -24,7 +24,7 @@ describe("080 · capacidades de WhatsApp por fuente (T019)", () => {
       structuredMessages: true,
       quoteReplies: true,
       deliveryReceipts: true,
-      templates: false,
+      templates: true,
     });
   });
 
@@ -36,10 +36,8 @@ describe("080 · capacidades de WhatsApp por fuente (T019)", () => {
     ).toEqual(["whatsapp"]);
   });
 
-  it("ventana cerrada: por Meta pide plantilla; por Zernio explica por qué no", () => {
+  it("ventana cerrada: por Meta y por Zernio pide una plantilla aprobada", () => {
     expect(whatsappWindowClosedMessage("meta")).toMatch(/plantilla aprobada/);
-    const z = whatsappWindowClosedMessage("zernio");
-    expect(z).toMatch(/Zernio/);
-    expect(z).not.toMatch(/usa una plantilla/);
+    expect(whatsappWindowClosedMessage("zernio")).toMatch(/plantilla aprobada/);
   });
 });

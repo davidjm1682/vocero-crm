@@ -31,12 +31,19 @@ export const ZERNIO_WHATSAPP_STATUS_EVENTS = [
   "message.failed",
 ] as const;
 
+/** 080 · Entrega 2 — Meta revisó (o recategorizó) una plantilla de WhatsApp. */
+export const ZERNIO_WHATSAPP_TEMPLATE_EVENTS = [
+  "whatsapp.template.status_updated",
+  "whatsapp.template.category_updated",
+] as const;
+
 /** Puro: los eventos a los que se suscribe el webhook de una organización. */
 export function zernioWebhookEvents(opts: { whatsapp: boolean }): string[] {
   return [
     ZERNIO_MESSAGE_EVENT,
     ZERNIO_REACTION_EVENT,
     ...(opts.whatsapp ? ZERNIO_WHATSAPP_STATUS_EVENTS : []),
+    ...(opts.whatsapp ? ZERNIO_WHATSAPP_TEMPLATE_EVENTS : []),
   ];
 }
 

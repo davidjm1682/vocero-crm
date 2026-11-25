@@ -39,7 +39,7 @@ const PASOS = [
 const REGLAS = [
   "Los mensajes, las fotos, los audios, las ubicaciones y los contactos de tus clientes entran a la misma bandeja.",
   "Puedes contestar con texto, archivos, ubicación y contactos, y citando un mensaje, mientras el cliente haya escrito en las últimas 24 horas.",
-  "Las plantillas para reabrir una conversación todavía no están disponibles por Zernio: pasadas las 24 horas hay que esperar a que el cliente vuelva a escribir.",
+  "Pasadas las 24 horas, reabres la conversación con una plantilla aprobada. Las plantillas se crean y sincronizan en Configuración → Plantillas, igual que con Meta.",
 ];
 
 export function WhatsappZernioClient() {

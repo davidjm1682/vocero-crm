@@ -587,11 +587,15 @@ se contesta con texto, archivos, ubicación, contactos y citando un mensaje,
 con los acuses de entrega y lectura. La variable gobierna la configuración, no
 el tráfico: una conexión ya guardada sigue funcionando aunque la apagues.
 
-**Por ahora no hay plantillas por Zernio**: pasadas las 24 horas hay que
-esperar a que el cliente vuelva a escribir (llegan en la siguiente entrega).
+**Plantillas**: se crean, se sincronizan y se envían por Zernio igual que con
+Meta (Configuración → Plantillas), y Vocero se entera solo cuando Meta las
+aprueba o rechaza. Pasadas las 24 horas, la conversación se reabre con una
+plantilla aprobada.
+
 Está probado con simulador y con el sandbox de Zernio; falta confirmar con un
-número real el adjunto por `multipart`, la forma de los mensajes fallidos y las
-reacciones. Guion: `tests/e2e/us-whatsapp-zernio.md`.
+número real el adjunto por `multipart`, la forma de los mensajes fallidos, las
+reacciones y las respuestas de Zernio al listar y crear plantillas. Guion:
+`tests/e2e/us-whatsapp-zernio.md`.
 
 ## Canales opcionales: Instagram, Messenger y TikTok
 

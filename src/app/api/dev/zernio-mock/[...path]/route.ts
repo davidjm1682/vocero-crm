@@ -5,6 +5,7 @@ import {
   zernioMockState,
   zernioTokenIsBad,
   type ZernioMockAccount,
+  type ZernioMockTemplate,
   type ZernioMockWebhook,
 } from "@/server/dev/zernio-mock-state";
 
@@ -57,7 +58,12 @@ export async function GET(req: Request, ctx: Ctx) {
 
   const state = zernioMockState();
   if (route === "_sent") {
-    return Response.json({ sent: state.sent, reactions: state.reactions });
+    return Response.json({
+      sent: state.sent,
+      reactions: state.reactions,
+      sentTemplates: state.sentTemplates,
+      templates: state.templates,
+    });
   }
   if (route === "_state") {
     return Response.json({
@@ -77,6 +83,14 @@ export async function GET(req: Request, ctx: Ctx) {
   // 023 — GET /webhooks/settings: los webhooks de la llave, con su secreto.
   if (route === "webhooks/settings") {
     return Response.json({ webhooks: state.webhooks });
+  }
+
+  // 080 · Entrega 2 — GET /whatsapp/templates?accountId=: las de esa cuenta.
+  if (route === "whatsapp/templates") {
+    const accountId = new URL(req.url).searchParams.get("accountId");
+    return Response.json({
+      templates: state.templates.filter((t) => t.accountId === accountId),
+    });
   }
 
   // 080 — El adjunto de un mensaje de WhatsApp: como el real, responde 401 sin
@@ -106,6 +120,13 @@ export async function POST(req: Request, ctx: Ctx) {
     return Response.json({ ok: true });
   }
   // 023 — preparar el escenario desde el arnés.
+  // 080 · Entrega 2 — el arnés decide la revisión de Meta: `_templates` reemplaza
+  // las plantillas (para aprobar o rechazar una ya creada).
+  if (route === "_templates") {
+    const body = (await req.json().catch(() => ({}))) as { templates?: ZernioMockTemplate[] };
+    zernioMockState().templates = body.templates ?? [];
+    return Response.json({ ok: true });
+  }
   if (route === "_dead") {
     const body = (await req.json().catch(() => ({}))) as { dead?: boolean };
     zernioMockState().dead = body.dead !== false;
@@ -125,6 +146,65 @@ export async function POST(req: Request, ctx: Ctx) {
   }
   if (zernioTokenIsBad(req.headers.get("authorization"))) return unauthorized();
   if (zernioMockState().down.includes(route)) return unavailable();
+
+  // 080 · Entrega 2 — POST /whatsapp/templates: crear; queda en revisión.
+  if (route === "whatsapp/templates") {
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const state = zernioMockState();
+    const comps = (body.components as { type?: string; text?: string }[] | undefined) ?? [];
+    const plantilla: ZernioMockTemplate = {
+      id: `tplmock_${Date.now().toString(36)}_${++state.seq}`,
+      accountId: String(body.accountId ?? ""),
+      name: String(body.name ?? ""),
+      language: String(body.language ?? ""),
+      category: String(body.category ?? ""),
+      status: "PENDING",
+      components: comps.map((c) => ({ type: String(c.type ?? "").toUpperCase(), text: c.text })),
+    };
+    state.templates = [
+      ...state.templates.filter(
+        (t) => !(t.accountId === plantilla.accountId && t.name === plantilla.name && t.language === plantilla.language)
+      ),
+      plantilla,
+    ];
+    return Response.json({ success: true, template: { id: plantilla.id, status: plantilla.status } });
+  }
+
+  // 080 · Entrega 2 — POST /inbox/conversations con plantilla: abre o reusa.
+  if (route === "inbox/conversations") {
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const state = zernioMockState();
+    const aprobada = state.templates.find(
+      (t) =>
+        t.accountId === String(body.accountId ?? "") &&
+        t.name === body.templateName &&
+        t.language === body.templateLanguage &&
+        t.status === "APPROVED"
+    );
+    if (!aprobada) {
+      return Response.json(
+        { error: { message: "Template is not approved", code: 132001 } },
+        { status: 400 }
+      );
+    }
+    const messageId = nextZernioMessageId();
+    const participantId = String(body.participantId ?? "");
+    const conversationId = `zconv_tpl_${participantId}`;
+    state.sentTemplates.push({
+      messageId,
+      conversationId,
+      accountId: body.accountId ? String(body.accountId) : null,
+      participantId,
+      templateName: String(body.templateName ?? ""),
+      templateLanguage: String(body.templateLanguage ?? ""),
+      templateParams: Array.isArray(body.templateParams) ? body.templateParams.map(String) : [],
+      idempotencyKey: req.headers.get("idempotency-key"),
+    });
+    return Response.json(
+      { success: true, data: { messageId, conversationId, participantId } },
+      { status: 201 }
+    );
+  }
 
   // 023 — POST /webhooks/settings: crear.
   if (route === "webhooks/settings") {

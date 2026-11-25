@@ -195,7 +195,8 @@ async function main() {
   if (hilo) {
     await acuses(hilo);
     await salida(hilo);
-    await ventana();
+    const vieja = await ventana();
+    await plantillas(vieja);
     await llaveMuerta(hilo);
   }
   await desconectar();
@@ -424,11 +425,106 @@ async function ventana() {
   const antes = (await enviadosPorZernio(hilo)).length;
   const r = await enviar(conv.id, { text: `¿sigues ahí? ${MARCA}` });
   ok(
-    "fuera de ventana → 409 window_closed, dicho para Zernio (sin plantillas)",
-    r.res.status === 409 && r.json?.error?.code === "window_closed" && /Zernio/.test(r.json?.error?.message ?? ""),
+    "fuera de ventana → 409 window_closed, pidiendo una plantilla aprobada",
+    r.res.status === 409 && r.json?.error?.code === "window_closed" && /plantilla/.test(r.json?.error?.message ?? ""),
     `${r.res.status} ${JSON.stringify(r.json)}`
   );
   ok("y no se llamó a Zernio", (await enviadosPorZernio(hilo)).length === antes);
+  return conv;
+}
+
+// ---------------------------------------------------------------------------
+// Entrega 2 — plantillas
+// ---------------------------------------------------------------------------
+
+async function plantillas(convVieja) {
+  console.log("\n== Plantillas: crear, revisar, sincronizar y reabrir ==");
+  await mock("_templates", {
+    templates: [
+      {
+        id: `tpl-externa-${RUN}`,
+        accountId: ACCOUNT,
+        name: `bienvenida_${RUN}`,
+        language: "es",
+        category: "UTILITY",
+        status: "APPROVED",
+        components: [{ type: "BODY", text: "Hola {{1}}, gracias por escribirnos." }],
+      },
+    ],
+  });
+
+  const sync = await api("/api/templates/sync", { method: "POST" });
+  ok("sincronizar → importa la aprobada creada fuera de Vocero", sync.res.ok && sync.json?.updated >= 1, `${sync.res.status} ${JSON.stringify(sync.json)}`);
+  const lista = async () => (await api("/api/templates")).json?.templates ?? [];
+  const externa = (await lista()).find((t) => t.name === `bienvenida_${RUN}`);
+  ok("y queda aprobada en Vocero", externa?.status === "approved", JSON.stringify(externa));
+
+  const nombre = `recordatorio_${RUN}`;
+  const creada = await api("/api/templates", {
+    method: "POST",
+    body: JSON.stringify({ name: nombre, language: "es", category: "UTILITY", body: "Hola {{1}}, te esperamos el {{2}}.", examples: ["Ana", "martes"] }),
+  });
+  ok("crear → 201, en revisión", creada.res.status === 201 && creada.json?.template?.status === "pending", `${creada.res.status} ${JSON.stringify(creada.json)}`);
+  const enZernio = ((await (await fetch(`${MOCK}/_sent`)).json()).templates ?? []).find((t) => t.name === nombre);
+  ok("Zernio la recibió con la cuenta y el cuerpo", enZernio?.accountId === ACCOUNT && enZernio?.components?.[0]?.text === "Hola {{1}}, te esperamos el {{2}}.", JSON.stringify(enZernio));
+
+  const evento = (status, reason) => ({
+    id: `evt-tpl-${RUN}-${status}`,
+    event: "whatsapp.template.status_updated",
+    account: { id: ACCOUNT },
+    template: { name: nombre, language: "es", status, reason },
+  });
+  ok("rechazo por webhook → 200", (await entregar(evento("REJECTED", "INVALID_FORMAT"))) === 200);
+  const rechazada = await hasta(async () => {
+    const t = (await lista()).find((x) => x.name === nombre);
+    return t?.status === "rejected" ? t : null;
+  });
+  ok("queda rechazada con su motivo", rechazada?.rejectionReason === "INVALID_FORMAT", JSON.stringify(rechazada));
+  ok("aprobación por webhook → 200", (await entregar(evento("APPROVED", "NONE"))) === 200);
+  const aprobada = await hasta(async () => {
+    const t = (await lista()).find((x) => x.name === nombre);
+    return t?.status === "approved" ? t : null;
+  });
+  ok("queda aprobada y sin motivo", Boolean(aprobada) && aprobada.rejectionReason === null, JSON.stringify(aprobada));
+  // El simulador también tiene que saberla aprobada para dejarla enviar.
+  const enMock = ((await (await fetch(`${MOCK}/_sent`)).json()).templates ?? []).map((t) =>
+    t.name === nombre ? { ...t, status: "APPROVED" } : t
+  );
+  await mock("_templates", { templates: enMock });
+
+  if (!convVieja || !aprobada) return;
+  console.log("\n== Plantillas: reabrir una conversación con la ventana cerrada ==");
+  const faltaValor = await api(`/api/conversations/${convVieja.id}/messages/template`, {
+    method: "POST",
+    body: JSON.stringify({ templateId: aprobada.id, variables: ["Vera"] }),
+  });
+  ok("con un valor de menos → rechazada antes de llamar a Zernio", faltaValor.res.status === 422, `${faltaValor.res.status} ${JSON.stringify(faltaValor.json)}`);
+  const envio = await api(`/api/conversations/${convVieja.id}/messages/template`, {
+    method: "POST",
+    body: JSON.stringify({ templateId: aprobada.id, variables: ["Vera", "jueves"] }),
+  });
+  ok("enviar la plantilla → 2xx", envio.res.ok, `${envio.res.status} ${JSON.stringify(envio.json)}`);
+  const salida = ((await (await fetch(`${MOCK}/_sent`)).json()).sentTemplates ?? []).find((s) => s.templateName === nombre);
+  ok(
+    "Zernio recibió la plantilla con el teléfono sin «+», el idioma, los valores en orden y una Idempotency-Key",
+    salida?.accountId === ACCOUNT && /^\d+$/.test(salida?.participantId ?? "") && salida?.templateLanguage === "es" &&
+      JSON.stringify(salida?.templateParams) === JSON.stringify(["Vera", "jueves"]) && Boolean(salida?.idempotencyKey),
+    JSON.stringify(salida)
+  );
+  const msg = (await mensajesDe(convVieja.id)).find((m) => m.type === "template");
+  ok("en el hilo queda la plantilla con los valores puestos, pendiente de acuse", msg?.text === "Hola Vera, te esperamos el jueves." && msg?.status === "pending", JSON.stringify(msg));
+
+  const noAprobada = (await lista()).find((t) => t.name === `bienvenida_${RUN}`);
+  await mock("_templates", { templates: [] });
+  const rechazoZernio = await api(`/api/conversations/${convVieja.id}/messages/template`, {
+    method: "POST",
+    body: JSON.stringify({ templateId: noAprobada?.id, variables: ["Vera"] }),
+  });
+  ok(
+    "si Zernio la rechaza (ya no aprobada en Meta) → error legible, traducido",
+    rechazoZernio.res.status === 422 && /Meta 132001/.test(rechazoZernio.json?.error?.message ?? ""),
+    `${rechazoZernio.res.status} ${JSON.stringify(rechazoZernio.json)}`
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -40,6 +40,9 @@ import {
 export function zernioTargetChannel(payload: unknown): ZernioChannel | null {
   const evt = payload as ZernioEvent | null;
   if (!evt || typeof evt !== "object") return null;
+  // 080: los eventos de plantillas son de la cuenta de WhatsApp y pueden no
+  // traer la plataforma.
+  if (typeof evt.event === "string" && evt.event.startsWith("whatsapp.")) return "whatsapp";
   const platform = zernioPlatform(evt);
   if (platform === "instagram") return "instagram";
   if (platform === "facebook" || platform === "messenger") return "messenger";

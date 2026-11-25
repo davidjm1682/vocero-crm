@@ -56,12 +56,13 @@ Las pruebas de cada bloque se escriben **antes** que el código que prueban.
 
 ## Entrega 2 — plantillas
 
-> Antes de empezar: confirmar con un número real la forma de crear, listar y del
-> evento de estado de plantillas (spec, «No verificado»).
+> Implementada (2026-11-25) según la documentación de Zernio, sin número real:
+> las formas de crear, listar y del evento de estado se leen con tolerancia y
+> quedan por confirmar en T028 (spec, «No verificado»).
 
-- [ ] T029 Pruebas de sincronizar, crear, estado y envío contra el simulador
-- [ ] T030 `templates.ts`: rama de Zernio en `syncTemplates` y `createTemplate`
-- [ ] T031 `applyTemplateStatusEvent` por `account.id` y `whatsapp.template.status_updated`; el evento entra al webhook
-- [ ] T032 `sendTemplate` por `POST /v1/inbox/conversations`, `templateParams` en orden y `conversationId` guardado
-- [ ] T033 Errores del tope diario de un número nuevo y de plantilla no aprobada, con su motivo
-- [ ] T034 Simulador y E2E de plantillas; gates; bitácora
+- [x] T029 Pruebas de sincronizar, crear, estado y envío contra el simulador
+- [x] T030 `templates.ts`: rama de Zernio en `syncTemplates` y `createTemplate`
+- [x] T031 `applyTemplateStatusEvent` por `account.id` y `whatsapp.template.status_updated`; el evento entra al webhook
+- [x] T032 `sendTemplate` por `POST /v1/inbox/conversations`, `templateParams` en orden y `conversationId` guardado
+- [x] T033 Errores del tope diario de un número nuevo y de plantilla no aprobada, con su motivo
+- [x] T034 Simulador y E2E de plantillas; gates; bitácora

@@ -14,8 +14,9 @@ imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
   por **su propia cuenta de Zernio** en vez de Meta directo. Entran texto, fotos,
   audios, documentos, ubicaciones y contactos; se contesta con texto, archivos,
   ubicación, contactos y citas, con acuses de entrega y lectura. Una organización
-  usa una sola fuente a la vez. **Todavía sin plantillas por Zernio** (siguiente
-  entrega). Probado con simulador y sandbox; falta confirmar con un número real.
+  usa una sola fuente a la vez. **Plantillas por Zernio**: crear, sincronizar,
+  enviar y recibir su aprobación o rechazo, igual que con Meta. Probado con
+  simulador y sandbox; falta confirmar con un número real.
 - **Migración `0033_whatsapp_por_zernio`**: crea la tabla
   `whatsapp_zernio_credentials`. Solo agrega: las instancias con Meta no cambian.
 - `/api/webhooks/wa/<token>` recibe ahora a Meta y a Zernio por la misma URL;
