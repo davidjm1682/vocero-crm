@@ -15,11 +15,15 @@ import { zernioFetch } from "@/server/zernio";
  * no tiene que copiar ningún id.
  */
 
-/** Los canales que llegan por Zernio. */
-export type ZernioChannel = Exclude<Channel, "whatsapp">;
+/**
+ * Los canales que pueden llegar por Zernio. 080: WhatsApp entra como la segunda
+ * fuente de su canal (la primera sigue siendo Meta directo).
+ */
+export type ZernioChannel = Channel;
 
 /** Cómo llama Zernio a la plataforma de cada canal. */
 export const ZERNIO_PLATFORMS: Record<ZernioChannel, readonly string[]> = {
+  whatsapp: ["whatsapp"],
   instagram: ["instagram"],
   messenger: ["facebook", "messenger"],
   tiktok: ["tiktok"],

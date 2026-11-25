@@ -1,7 +1,7 @@
 import { apiError, withAuth } from "@/lib/api";
 import { channelsStatus } from "@/server/channels/status";
 import {
-  ZERNIO_CHANNELS,
+  ZERNIO_SOCIAL_CHANNELS,
   ensureWebhookForOrg,
 } from "@/server/zernio/conexiones";
 import {
@@ -12,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 /** Sin ningún canal social encendido esta superficie no existe (ADR-001). */
-const haySociales = () => ZERNIO_CHANNELS.some((c) => isChannelEnabled(c));
+const haySociales = () => ZERNIO_SOCIAL_CHANNELS.some((c) => isChannelEnabled(c));
 
 /**
  * 023 — Estado de los canales: conexión, última entrada y, con Zernio, la

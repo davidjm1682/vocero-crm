@@ -232,6 +232,13 @@
       "when": 1795545644836,
       "tag": "0032_la_ia_vuelve_sola",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795613601318,
+      "tag": "0033_whatsapp_por_zernio",
+      "breakpoints": true
     }
   ]
 }

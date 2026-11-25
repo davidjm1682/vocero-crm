@@ -45,11 +45,12 @@ afterEach(async () => {
 });
 
 describe("features: las banderas de despliegue", () => {
-  it("sin banderas: solo WhatsApp, agenda y atribución apagadas", () => {
+  it("sin banderas: solo WhatsApp, agenda, atribución y WhatsApp por Zernio apagadas", () => {
     expect(healthFeatures({})).toEqual({
       agenda: false,
       channels: ["whatsapp"],
       atribucion: false,
+      whatsappZernio: false,
       media: "disco",
     });
   });
@@ -66,6 +67,7 @@ describe("features: las banderas de despliegue", () => {
       agenda: true,
       channels: ["whatsapp", "instagram", "messenger"],
       atribucion: true,
+      whatsappZernio: false,
       media: "disco",
     });
   });
@@ -75,7 +77,13 @@ describe("features: las banderas de despliegue", () => {
     // `true` y la agenda respondiera 404, el health mentiría.
     expect(
       healthFeatures({ AGENDA: "onn", CHANNELS: "telegram", ATRIBUCION: "off" })
-    ).toEqual({ agenda: false, channels: ["whatsapp"], atribucion: false, media: "disco" });
+    ).toEqual({
+      agenda: false,
+      channels: ["whatsapp"],
+      atribucion: false,
+      whatsappZernio: false,
+      media: "disco",
+    });
   });
 });
 

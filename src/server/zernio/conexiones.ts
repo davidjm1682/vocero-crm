@@ -18,6 +18,10 @@ import {
   getTiktokCredentialsByOrg,
 } from "@/server/tiktok/credentials";
 import {
+  getWhatsappZernioCredentialsByAccountRef,
+  getWhatsappZernioCredentialsByOrg,
+} from "@/server/whatsapp-zernio/credentials";
+import {
   webhookUrl,
   webhookVerifyToken,
   type WebhookChannel,
@@ -28,6 +32,7 @@ import {
   cachedZernioWebhooks,
   ensureZernioWebhook,
   pointsHere,
+  zernioWebhookEvents,
 } from "@/server/zernio/webhooks";
 
 /**
@@ -39,12 +44,22 @@ import {
  * en lugar de tres veces casi iguales.
  */
 
-export const ZERNIO_CHANNELS = CHANNEL_ORDER.filter(
-  (c): c is ZernioChannel => c !== "whatsapp"
+/** 080: incluye WhatsApp, que ya puede llegar por Zernio. */
+export const ZERNIO_CHANNELS: readonly ZernioChannel[] = CHANNEL_ORDER;
+
+/**
+ * Los canales sociales por Zernio (sin WhatsApp). Son los que deciden si existe
+ * la pantalla de Canales: WhatsApp está siempre encendido, así que contarlo
+ * ahí la mostraría en toda instalación (ADR-001).
+ */
+export const ZERNIO_SOCIAL_CHANNELS: readonly ZernioChannel[] = CHANNEL_ORDER.filter(
+  (c) => c !== "whatsapp"
 );
 
 /** Segmento de la ruta del webhook de cada canal. */
-const WEBHOOK_PATH: Record<ZernioChannel, WebhookChannel> = {
+export const WEBHOOK_PATH: Record<ZernioChannel, WebhookChannel> = {
+  // El mismo segmento que el de Meta: la ruta decide por la firma (080 · D11).
+  whatsapp: "wa",
   instagram: "ig",
   messenger: "messenger",
   tiktok: "tiktok",
@@ -65,10 +80,21 @@ export type ZernioConnection = {
 
 const arroba = (u: string | null) => (u ? `@${u.replace(/^@/, "")}` : null);
 
+/** El número que una persona reconoce; si no hay, el nombre verificado. */
+const nombreWhatsapp = (c: {
+  displayPhoneNumber: string | null;
+  verifiedName: string | null;
+}) => c.displayPhoneNumber ?? c.verifiedName;
+
 async function byOrg(
   channel: ZernioChannel,
   organizationId: string
 ): Promise<ZernioConnection | null> {
+  if (channel === "whatsapp") {
+    const c = await getWhatsappZernioCredentialsByOrg(organizationId);
+    if (!c) return null;
+    return { channel, ...comun(c), accountRef: c.accountRef, name: nombreWhatsapp(c) };
+  }
   if (channel === "instagram") {
     const c = await getInstagramCredentialsByOrg(organizationId);
     if (!c || c.source !== "zernio" || !c.accountRef) return null;
@@ -88,6 +114,11 @@ async function byAccountRef(
   channel: ZernioChannel,
   accountRef: string
 ): Promise<ZernioConnection | null> {
+  if (channel === "whatsapp") {
+    const c = await getWhatsappZernioCredentialsByAccountRef(accountRef);
+    if (!c) return null;
+    return { channel, ...comun(c), accountRef: c.accountRef, name: nombreWhatsapp(c) };
+  }
   if (channel === "instagram") {
     const c = await getInstagramCredentialsByAccountRef(accountRef);
     if (!c || c.source !== "zernio" || !c.accountRef) return null;
@@ -162,7 +193,16 @@ async function update(
     updatedAt: new Date(),
   };
   const db = getDb();
-  if (channel === "instagram") {
+  if (channel === "whatsapp") {
+    // La tabla de WhatsApp por Zernio no tiene la columna del secreto en claro.
+    const { webhookSecret: _enClaro, ...cifrado } = values as typeof values & {
+      webhookSecret?: unknown;
+    };
+    await db
+      .update(schema.whatsappZernioCredentials)
+      .set(cifrado)
+      .where(eq(schema.whatsappZernioCredentials.id, id));
+  } else if (channel === "instagram") {
     await db
       .update(schema.instagramCredentials)
       .set(values)
@@ -305,6 +345,9 @@ export async function ensureWebhookForOrg(
         acceptableUrls,
         accountIds,
         secret,
+        events: zernioWebhookEvents({
+          whatsapp: grupo.some((c) => c.channel === "whatsapp"),
+        }),
       });
       created ||= r.created;
       for (const id of accountIds) cubiertas.add(id);

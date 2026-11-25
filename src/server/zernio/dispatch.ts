@@ -3,6 +3,7 @@ import { processZernioEvent } from "@/server/instagram/ingest";
 import { processZernioMessengerEvent } from "@/server/messenger/ingest";
 import { processZernioTiktokEvent, zernioPlatform } from "@/server/tiktok/ingest";
 import { webhookVerifyToken } from "@/server/whatsapp/webhook-url";
+import { processZernioWhatsappEvent } from "@/server/whatsapp-zernio/ingest";
 import {
   isValidZernioSignatureAny,
   parseZernioEvent,
@@ -43,6 +44,7 @@ export function zernioTargetChannel(payload: unknown): ZernioChannel | null {
   if (platform === "instagram") return "instagram";
   if (platform === "facebook" || platform === "messenger") return "messenger";
   if (platform === "tiktok") return "tiktok";
+  if (platform === "whatsapp") return "whatsapp";
   return null;
 }
 
@@ -117,7 +119,8 @@ export async function processZernioPayload(payload: unknown): Promise<void> {
     return;
   }
 
-  if (channel === "messenger") await processZernioMessengerEvent(payload);
+  if (channel === "whatsapp") await processZernioWhatsappEvent(payload);
+  else if (channel === "messenger") await processZernioMessengerEvent(payload);
   else if (channel === "tiktok") await processZernioTiktokEvent(payload);
   else await processZernioEvent(payload);
 }

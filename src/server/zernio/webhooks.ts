@@ -19,6 +19,27 @@ export const ZERNIO_MESSAGE_EVENT = "message.received";
 /** 072 — Las reacciones del cliente llegan en su propio evento. */
 export const ZERNIO_REACTION_EVENT = "reaction.received";
 
+/**
+ * 080 — Los acuses de envío de WhatsApp: Zernio los entrega como eventos
+ * aparte (a diferencia de Meta, que los manda en el mismo POST). Solo se piden
+ * cuando la organización tiene su WhatsApp por Zernio.
+ */
+export const ZERNIO_WHATSAPP_STATUS_EVENTS = [
+  "message.sent",
+  "message.delivered",
+  "message.read",
+  "message.failed",
+] as const;
+
+/** Puro: los eventos a los que se suscribe el webhook de una organización. */
+export function zernioWebhookEvents(opts: { whatsapp: boolean }): string[] {
+  return [
+    ZERNIO_MESSAGE_EVENT,
+    ZERNIO_REACTION_EVENT,
+    ...(opts.whatsapp ? ZERNIO_WHATSAPP_STATUS_EVENTS : []),
+  ];
+}
+
 /** Un webhook de `GET /webhooks/settings`, en lo que a Vocero le importa. */
 export type ZernioWebhook = {
   _id: string;
@@ -202,6 +223,8 @@ export async function ensureZernioWebhook(input: {
   acceptableUrls: readonly string[];
   accountIds: readonly string[];
   secret: string;
+  /** 080: los eventos a pedir; por omisión, mensajes y reacciones. */
+  events?: readonly string[];
 }): Promise<{ created: boolean; id: string }> {
   const existentes = await fetchZernioWebhooks(input.token);
   const previo =
@@ -215,7 +238,7 @@ export async function ensureZernioWebhook(input: {
     name: previo?.name || input.name,
     url,
     // 072: también las reacciones del cliente (D9).
-    events: [ZERNIO_MESSAGE_EVENT, ZERNIO_REACTION_EVENT],
+    events: [...(input.events ?? zernioWebhookEvents({ whatsapp: false }))],
     secret: input.secret,
     isActive: true,
     accountIds: [...new Set(input.accountIds)],

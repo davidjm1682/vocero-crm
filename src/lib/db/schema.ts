@@ -735,6 +735,53 @@ export const tiktokCredentials = pgTable(
   ]
 );
 
+/**
+ * 080 — Credenciales del WhatsApp conectado a través de la cuenta de Zernio del
+ * propio negocio: la SEGUNDA fuente del canal `whatsapp`, junto a Meta directo
+ * (`meta_credentials`, que no se toca: su `waba_id` y `phone_number_id` son
+ * obligatorios y únicos, y relajarlos arriesgaría a las instancias que ya
+ * funcionan).
+ *
+ * Una organización usa UNA fuente a la vez; eso lo hace cumplir el código
+ * (`getWhatsappSource`), no una restricción cruzada entre tablas.
+ *
+ * Mismo patrón que `tiktok_credentials`, salvo que NO lleva la columna
+ * `webhook_secret` en claro que la 030 dejó obsoleta: nacería para quitarse en
+ * la siguiente versión mayor.
+ */
+export const whatsappZernioCredentials = pgTable(
+  "whatsapp_zernio_credentials",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    source: text("source", { enum: ["zernio"] }).notNull().default("zernio"),
+    /** `accountId` de la cuenta de WhatsApp en Zernio: por él enruta el webhook. */
+    accountRef: text("account_ref").notNull(),
+    /** Número que Zernio da a la cuenta (`username`), solo para enseñarlo en Ajustes. */
+    displayPhoneNumber: text("display_phone_number"),
+    /** Nombre de la cuenta en Zernio, solo para enseñarlo en Ajustes. */
+    verifiedName: text("verified_name"),
+    tokenCipher: text("token_cipher").notNull(),
+    tokenIv: text("token_iv").notNull(),
+    tokenTag: text("token_tag").notNull(),
+    /** Secreto HMAC de las entregas de Zernio, cifrado como el token (030). */
+    webhookSecretCipher: text("webhook_secret_cipher"),
+    webhookSecretIv: text("webhook_secret_iv"),
+    webhookSecretTag: text("webhook_secret_tag"),
+    status: text("status", { enum: ["connected", "reconnect_required"] })
+      .notNull()
+      .default("connected"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("whatsapp_zernio_credentials_org_uq").on(t.organizationId),
+    uniqueIndex("whatsapp_zernio_credentials_account_ref_uq").on(t.accountRef),
+  ]
+);
+
 export const agentProfile = pgTable(
   "agent_profile",
   {

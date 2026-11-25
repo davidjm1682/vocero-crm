@@ -328,7 +328,8 @@ describe("017 · reparto de Zernio por plataforma (un webhook, varios canales)",
 
   it("una plataforma que Vocero no atiende no es de nadie", () => {
     // 022: `tiktok` salió de esta lista: ya es un canal (tests/unit/tiktok.test.ts).
-    for (const platform of ["whatsapp", "x", "twitter", "linkedin", ""]) {
+    // 080: `whatsapp` también salió: llega por Zernio (whatsapp-zernio-canal.test.ts).
+    for (const platform of ["x", "twitter", "linkedin", ""]) {
       expect(zernioTargetChannel(zernioEvent({ account: { id: ACCOUNT, platform } }))).toBeNull();
     }
     expect(zernioTargetChannel(null)).toBeNull();

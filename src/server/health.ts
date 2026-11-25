@@ -6,6 +6,7 @@ import { parseAgendaFlag } from "@/server/agenda/flag";
 import { parseAtribucionFlag } from "@/server/attribution/flag";
 import { parseChannels } from "@/server/channels/enabled";
 import { mediaDirStatus } from "@/server/media-dir";
+import { parseWhatsappZernioFlag } from "@/server/whatsapp-zernio/flag";
 import { conteoGlobal } from "@/server/webhooks/eventos";
 
 /**
@@ -49,6 +50,8 @@ export type HealthFeatures = {
   channels: Channel[];
   /** Atribución de anuncios y CAPI (016): bandera `ATRIBUCION`. */
   atribucion: boolean;
+  /** WhatsApp por la cuenta de Zernio del negocio (080): bandera `WHATSAPP_ZERNIO`. */
+  whatsappZernio: boolean;
   /** 037 — Dónde pidió quien instala guardar los adjuntos: bandera
    *  `MEDIA_STORE`. Si de verdad se puede escribir ahí lo dice `mediaWritable`. */
   media: "disco" | "bucket";
@@ -81,6 +84,7 @@ export type FlagEnv = {
   AGENDA?: string;
   CHANNELS?: string;
   ATRIBUCION?: string;
+  WHATSAPP_ZERNIO?: string;
   MEDIA_STORE?: string;
   [otra: string]: string | undefined;
 };
@@ -97,6 +101,7 @@ export function healthFeatures(env: FlagEnv = process.env): HealthFeatures {
     agenda: parseAgendaFlag(env.AGENDA),
     channels: CHANNEL_ORDER.filter((c) => channels.has(c)),
     atribucion: parseAtribucionFlag(env.ATRIBUCION),
+    whatsappZernio: parseWhatsappZernioFlag(env.WHATSAPP_ZERNIO),
     media: env.MEDIA_STORE?.trim().toLowerCase() === "bucket" ? "bucket" : "disco",
   };
 }
