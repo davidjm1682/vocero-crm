@@ -71,6 +71,12 @@ export type ChannelCapabilities = {
    * Instagram con Instagram Login no la documenta (spec 039 · D5).
    */
   quoteReplies: boolean;
+  /**
+   * 080 — ¿Se puede reabrir la conversación con una plantilla desde Vocero?
+   * WhatsApp por Meta, sí. WhatsApp por Zernio, todavía no (entrega 2). Los
+   * demás canales no tienen plantillas.
+   */
+  templates: boolean;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -92,6 +98,7 @@ export const CHANNEL_CAPABILITIES: Record<Channel, ChannelCapabilities> = {
     structuredMessages: true,
     deliveryReceipts: true,
     quoteReplies: true,
+    templates: true,
   },
   instagram: {
     label: CHANNEL_LABEL.instagram,
@@ -108,6 +115,7 @@ export const CHANNEL_CAPABILITIES: Record<Channel, ChannelCapabilities> = {
     structuredMessages: false,
     deliveryReceipts: false,
     quoteReplies: false,
+    templates: false,
   },
   // 017: Messenger comparte la plataforma de mensajería de Meta con Instagram
   // (misma ventana de 24 h, misma etiqueta HUMAN_AGENT fuera de ella, sin
@@ -126,6 +134,7 @@ export const CHANNEL_CAPABILITIES: Record<Channel, ChannelCapabilities> = {
     structuredMessages: false,
     deliveryReceipts: false,
     quoteReplies: false,
+    templates: false,
   },
   /**
    * 022: lo que TikTok impone a los mensajes directos de una cuenta de
@@ -147,6 +156,7 @@ export const CHANNEL_CAPABILITIES: Record<Channel, ChannelCapabilities> = {
     structuredMessages: false,
     deliveryReceipts: false,
     quoteReplies: false,
+    templates: false,
   },
 };
 
@@ -160,6 +170,25 @@ export function windowMsFor(channel: Channel): number {
 
 export function capabilitiesFor(channel: Channel): ChannelCapabilities {
   return CHANNEL_CAPABILITIES[channel] ?? CHANNEL_CAPABILITIES.whatsapp;
+}
+
+/**
+ * 080 — Las capacidades de WhatsApp según de dónde salga: Meta directo o la
+ * cuenta de Zernio del negocio. Ventana, adjuntos, ubicación, contactos, citas
+ * y acuses son los mismos (verificados en el sandbox); lo que cambia es que por
+ * Zernio aún no hay plantillas. Un compositor que solo ofrece lo que la fuente
+ * puede no deja al operador intentar lo que va a fallar.
+ */
+export function whatsappCapabilities(source: "meta" | "zernio" | null): ChannelCapabilities {
+  const base = CHANNEL_CAPABILITIES.whatsapp;
+  return source === "zernio" ? { ...base, templates: false } : base;
+}
+
+/** Mensaje de ventana cerrada de WhatsApp, según si la fuente tiene plantillas. */
+export function whatsappWindowClosedMessage(source: "meta" | "zernio" | null): string {
+  return whatsappCapabilities(source).templates
+    ? windowClosedMessage("whatsapp")
+    : "La ventana de 24 horas está cerrada: por Zernio todavía no se pueden mandar plantillas. Hay que esperar a que el cliente vuelva a escribir";
 }
 
 /** Mensaje para el operador cuando la ventana está cerrada, según el canal. */

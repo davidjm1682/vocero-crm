@@ -34,11 +34,11 @@ Las pruebas de cada bloque se escriben **antes** que el código que prueban.
 
 ### Salida
 
-- [ ] T016 Pruebas de `send.ts` (texto, adjunto por `multipart`, cita, ubicación, contacto, `Idempotency-Key`) contra un `fetch` simulado
-- [ ] T017 `whatsapp-zernio/send.ts` y la ampliación de `sendZernioMessage`
-- [ ] T018 `prepareSend`, `sendText`, `sendMediaMessage` y `sendStructured`: rama de Zernio tras `is_test` y ventana, antes de las credenciales de Meta
-- [ ] T019 `capabilities.ts`: capacidades de WhatsApp por fuente; el compositor solo ofrece lo que la fuente puede
-- [ ] T020 Traducción de fallos: llave muerta → `reconnect_required`; 0/5xx → `meta_unavailable` con el mensaje `failed` visible
+- [x] T016 Pruebas de `send.ts` (texto, adjunto por `multipart`, cita, ubicación, contacto, `Idempotency-Key`) contra un `fetch` simulado
+- [x] T017 `whatsapp-zernio/send.ts` y la ampliación de `sendZernioMessage`
+- [x] T018 `prepareSend`, `sendText`, `sendMediaMessage` y `sendStructured`: rama de Zernio tras `is_test` y ventana, antes de las credenciales de Meta
+- [x] T019 `capabilities.ts`: capacidades de WhatsApp por fuente; el compositor solo ofrece lo que la fuente puede
+- [x] T020 Traducción de fallos: llave muerta → `reconnect_required`; 0/5xx → `meta_unavailable` con el mensaje `failed` visible
 
 ### Superficie
 

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -33,6 +34,16 @@ import {
 } from "@/server/tiktok/credentials";
 import { sendTiktokText } from "@/server/tiktok/send";
 import { prepararAudioSaliente } from "@/server/whatsapp/nota-de-voz";
+import { describeSendError } from "@/lib/meta/send-errors";
+import {
+  getWhatsappZernioCredentialsByOrg,
+  markWhatsappZernioReconnectRequired,
+  type WhatsappZernioCredentials,
+} from "@/server/whatsapp-zernio/credentials";
+import {
+  sendWhatsappViaZernio,
+  type WhatsappZernioPayload,
+} from "@/server/whatsapp-zernio/send";
 import {
   cabeOtroMensaje,
   salientesDesdeElUltimoEntrante,
@@ -45,6 +56,8 @@ import {
   windowClosedMessage,
   windowMsFor,
   aiWindowClosedMessage,
+  whatsappCapabilities,
+  whatsappWindowClosedMessage,
 } from "@/server/channels/capabilities";
 import { isChannelEnabled } from "@/server/channels/enabled";
 import { serializeMessage } from "@/server/inbox/ingest";
@@ -104,6 +117,11 @@ type SendTarget = {
   messenger?: MessengerCredentials;
   /** 022: presente solo en conversaciones de TikTok. */
   tiktok?: TiktokCredentials;
+  /**
+   * 080: presente cuando el WhatsApp de esta organización sale por su cuenta de
+   * Zernio y no por Meta directo; en ese caso `credentials` es null.
+   */
+  whatsappZernio?: WhatsappZernioCredentials;
   /**
    * 024: el envío sale con la etiqueta de agente humano. Lo decide el
    * pre-vuelo (`assertReplyWindow`), no cada canal por su cuenta.
@@ -301,10 +319,21 @@ async function prepareSend(
     };
   }
 
+  // 080: de dónde sale el WhatsApp de esta organización. Meta manda: si hay
+  // credenciales de Meta, nada cambia para esa instancia.
+  const credentials = await getCredentialsByOrg(organizationId);
+  const whatsappZernio =
+    !credentials && row.conversation.channel === "whatsapp"
+      ? await getWhatsappZernioCredentialsByOrg(organizationId)
+      : null;
+
   // El nucleo no decide la politica: la consulta. WhatsApp exige plantilla
   // fuera de ventana; Instagram etiqueta y sigue; otro canal podria no tener
   // ventana en absoluto.
-  const caps = capabilitiesFor(row.conversation.channel);
+  const caps =
+    row.conversation.channel === "whatsapp"
+      ? whatsappCapabilities(whatsappZernio ? "zernio" : "meta")
+      : capabilitiesFor(row.conversation.channel);
   if (
     caps.windowMs !== null &&
     caps.outsideWindow === "template" &&
@@ -312,11 +341,36 @@ async function prepareSend(
   ) {
     throw new SendError(
       "window_closed",
-      windowClosedMessage(row.conversation.channel)
+      row.conversation.channel === "whatsapp"
+        ? whatsappWindowClosedMessage(whatsappZernio ? "zernio" : "meta")
+        : windowClosedMessage(row.conversation.channel)
     );
   }
 
-  const credentials = await getCredentialsByOrg(organizationId);
+  if (whatsappZernio) {
+    if (whatsappZernio.status === "reconnect_required") {
+      throw new SendError(
+        "reconnect_required",
+        "La llave de Zernio dejó de servir: reconecta WhatsApp en Configuración"
+      );
+    }
+    const zRecipient = row.contact.phone ?? row.contact.waUserId;
+    if (!zRecipient) {
+      throw new SendError(
+        "meta_error",
+        "El contacto no tiene teléfono ni identidad de WhatsApp utilizable"
+      );
+    }
+    return {
+      conversation: row.conversation,
+      credentials: null,
+      // Zernio responde dentro de SU conversación: el destinatario no viaja.
+      destinatario: { to: zRecipient },
+      recipient: zRecipient,
+      whatsappZernio,
+    };
+  }
+
   if (!credentials) {
     throw new SendError("not_connected", "No hay número de WhatsApp conectado");
   }
@@ -532,9 +586,11 @@ export async function sendText(input: {
     }
   };
 
-  const waMessageId = target.instagram
-    ? await callInstagramSend(target, text)
-    : target.messenger
+  const waMessageId = target.whatsappZernio
+    ? await callWhatsappZernioSend(target, { kind: "text", text }, cita?.message.waMessageId)
+    : target.instagram
+      ? await callInstagramSend(target, text)
+      : target.messenger
       ? await callMessengerSend(target, text)
       : target.tiktok
         ? await callTiktokSend(target, text)
@@ -620,30 +676,47 @@ export async function sendMediaMessage(input: {
   const asset = assetRows[0]!;
 
   try {
-    const waMediaId = await uploadGraphMedia(credentials!, file);
-    await db
-      .update(schema.mediaAsset)
-      .set({ waMediaId, updatedAt: new Date() })
-      .where(eq(schema.mediaAsset.id, assetId));
-
-    const mediaPayload: Record<string, unknown> = { id: waMediaId };
-    if (input.caption && kind !== "audio") mediaPayload.caption = input.caption;
-    if (kind === "audio" && audio.voice) mediaPayload.voice = true;
-    if (kind === "document" && file.fileName) {
-      mediaPayload.filename = file.fileName;
-    }
-    const waMessageId = await callGraphSend(
-      credentials!,
-      conCita(
+    let waMessageId: string;
+    if (target.whatsappZernio) {
+      // 080: por Zernio el archivo viaja en la propia petición; no hay subida
+      // previa a Graph ni `waMediaId`.
+      waMessageId = await callWhatsappZernioSend(
+        target,
         {
-          messaging_product: "whatsapp",
-          ...target.destinatario,
-          type: kind,
-          [kind]: mediaPayload,
+          kind: "media",
+          file,
+          mediaKind: kind,
+          caption: input.caption ?? null,
+          voice: audio.voice,
         },
         cita?.message.waMessageId
-      )
-    );
+      );
+    } else {
+      const waMediaId = await uploadGraphMedia(credentials!, file);
+      await db
+        .update(schema.mediaAsset)
+        .set({ waMediaId, updatedAt: new Date() })
+        .where(eq(schema.mediaAsset.id, assetId));
+
+      const mediaPayload: Record<string, unknown> = { id: waMediaId };
+      if (input.caption && kind !== "audio") mediaPayload.caption = input.caption;
+      if (kind === "audio" && audio.voice) mediaPayload.voice = true;
+      if (kind === "document" && file.fileName) {
+        mediaPayload.filename = file.fileName;
+      }
+      waMessageId = await callGraphSend(
+        credentials!,
+        conCita(
+          {
+            messaging_product: "whatsapp",
+            ...target.destinatario,
+            type: kind,
+            [kind]: mediaPayload,
+          },
+          cita?.message.waMessageId
+        )
+      );
+    }
 
     const messageId = await persistOutbound({
       organizationId: input.organizationId,
@@ -720,7 +793,7 @@ export async function sendStructured(
   );
   // Ubicaciones y contactos son mensajes de WhatsApp: en los demás canales no
   // hay credenciales de WhatsApp que usar y Graph los rechazaría.
-  if (!target.credentials) {
+  if (!target.credentials && !target.whatsappZernio) {
     throw new SendError(
       "meta_error",
       "Este canal no admite ubicaciones ni contactos; manda el texto"
@@ -739,17 +812,25 @@ export async function sendStructured(
           })),
         };
 
-  const waMessageId = await callGraphSend(
-    target.credentials,
-    conCita(
-      {
-        messaging_product: "whatsapp",
-        ...target.destinatario,
-        ...payload,
-      },
-      cita?.message.waMessageId
-    )
-  );
+  const waMessageId = target.whatsappZernio
+    ? await callWhatsappZernioSend(
+        target,
+        input.kind === "location"
+          ? { kind: "location", location: input.location }
+          : { kind: "contacts", contacts: input.contacts },
+        cita?.message.waMessageId
+      )
+    : await callGraphSend(
+        target.credentials!,
+        conCita(
+          {
+            messaging_product: "whatsapp",
+            ...target.destinatario,
+            ...payload,
+          },
+          cita?.message.waMessageId
+        )
+      );
 
   const db = getDb();
   const assetRows = await db
@@ -924,6 +1005,67 @@ async function callMessengerSend(
         );
       }
       throw new SendError("meta_error", err.message);
+    }
+    throw err;
+  }
+}
+
+/** El código numérico de WhatsApp dentro de la respuesta de error de Zernio, si lo trae. */
+function codigoDeWhatsapp(details: unknown): number | null {
+  const d = details as
+    | { error?: { code?: unknown; metaCode?: unknown }; code?: unknown; metaCode?: unknown }
+    | null
+    | undefined;
+  for (const v of [d?.error?.metaCode, d?.error?.code, d?.metaCode, d?.code]) {
+    const n = Number(v);
+    if (Number.isInteger(n) && n > 0) return n;
+  }
+  return null;
+}
+
+/**
+ * 080 — Envío de WhatsApp por la cuenta de Zernio del negocio. Mismo
+ * vocabulario de SendError que los demás caminos: una llave muerta pausa los
+ * envíos y pide reconectar, Zernio caído se puede reintentar, y un rechazo se
+ * traduce con el mismo traductor de códigos que los de Meta. La ventana ya se
+ * comprobó en `prepareSend`.
+ */
+async function callWhatsappZernioSend(
+  target: SendTarget,
+  payload: WhatsappZernioPayload,
+  replyTo: string | null | undefined
+): Promise<string> {
+  const creds = target.whatsappZernio!;
+  try {
+    const res = await sendWhatsappViaZernio({
+      creds,
+      conversationId: target.conversation.channelThreadRef,
+      payload,
+      replyTo,
+      idempotencyKey: randomUUID(),
+    });
+    return res.platformMessageId;
+  } catch (err) {
+    if (err instanceof MetaApiError) {
+      if (err.isAuthError) {
+        await markWhatsappZernioReconnectRequired(creds.organizationId);
+        throw new SendError(
+          "reconnect_required",
+          "La llave de Zernio expiró o fue revocada: reconecta WhatsApp"
+        );
+      }
+      if (err.status === 0 || err.status >= 500) {
+        throw new SendError(
+          "meta_unavailable",
+          "Zernio no está disponible en este momento; intenta de nuevo"
+        );
+      }
+      const code = codigoDeWhatsapp(err.details);
+      throw new SendError(
+        "meta_error",
+        code !== null ? describeSendError(code, err.message) : err.message,
+        { metaCode: code }
+      );
     }
     throw err;
   }

@@ -168,10 +168,21 @@ export async function sendZernioMessage(input: {
   token: string;
   accountId: string | null;
   conversationId: string | null;
-  text: string;
+  /** 080: puede faltar si el envío es solo un adjunto, una ubicación o contactos. */
+  text?: string | null;
   /** Fuera de la ventana de 24 h, la única etiqueta admitida. */
   humanAgentTag?: boolean;
   idempotencyKey?: string;
+  /**
+   * 080 — Campos propios de WhatsApp que van tal cual en el cuerpo: `replyTo`,
+   * `location`, `contacts`, `attachmentType`…
+   */
+  extra?: Record<string, unknown>;
+  /**
+   * 080 — Un archivo propio (no una URL pública): sale como `multipart/form-data`
+   * con el campo `attachment`, que es como la API de Zernio recibe binarios.
+   */
+  attachment?: { data: Buffer; mimeType: string; fileName?: string };
 }): Promise<ZernioSendResult> {
   if (!input.conversationId) {
     throw new MetaApiError(
@@ -182,11 +193,26 @@ export async function sendZernioMessage(input: {
 
   const body: Record<string, unknown> = {
     accountId: input.accountId,
-    message: input.text,
+    ...(input.text ? { message: input.text } : {}),
+    ...(input.extra ?? {}),
   };
   if (input.humanAgentTag) {
     body.messagingType = "MESSAGE_TAG";
     body.messageTag = "HUMAN_AGENT";
+  }
+
+  let form: FormData | undefined;
+  if (input.attachment) {
+    form = new FormData();
+    for (const [k, v] of Object.entries(body)) {
+      if (v === undefined || v === null) continue;
+      form.append(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    }
+    form.append(
+      "attachment",
+      new Blob([new Uint8Array(input.attachment.data)], { type: input.attachment.mimeType }),
+      input.attachment.fileName ?? "archivo"
+    );
   }
 
   const res = await zernioFetch(
@@ -194,7 +220,7 @@ export async function sendZernioMessage(input: {
     {
       method: "POST",
       token: input.token,
-      body,
+      ...(form ? { form, timeoutMs: 60_000 } : { body }),
       ...(input.idempotencyKey
         ? { headers: { "Idempotency-Key": input.idempotencyKey } }
         : {}),
@@ -271,6 +297,8 @@ export async function zernioFetch(
     timeoutMs?: number;
     token: string;
     body?: unknown;
+    /** 080: cuerpo `multipart/form-data`; el `Content-Type` con su frontera lo pone fetch. */
+    form?: FormData;
     headers?: Record<string, string>;
   }
 ): Promise<unknown> {
@@ -283,7 +311,7 @@ export async function zernioFetch(
         ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(opts.headers ?? {}),
       },
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body: opts.form ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
       ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
   } catch (cause) {
