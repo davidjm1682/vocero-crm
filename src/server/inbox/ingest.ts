@@ -145,10 +145,14 @@ export function mediaRemota(m: RemoteMedia): MediaInput {
   return {
     kind: m.kind,
     waMediaId: null,
-    mimeType: null,
-    fileName: null,
+    mimeType: m.mimeType ?? null,
+    fileName: m.fileName ?? null,
     caption: null,
-    payload: { sourceUrl: m.sourceUrl, origen: m.origen },
+    payload: {
+      sourceUrl: m.sourceUrl,
+      origen: m.origen,
+      ...(m.sha256 ? { sha256: m.sha256 } : {}),
+    },
     fetchStatus: "pending",
   };
 }

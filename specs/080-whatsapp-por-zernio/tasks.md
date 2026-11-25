@@ -21,16 +21,16 @@ Las pruebas de cada bloque se escriben **antes** que el código que prueban.
 
 ### Entrada
 
-- [ ] T009 Pruebas del normalizador con los eventos reales del sandbox (sin datos personales): texto, botón, cita, imagen, nota de voz, documento, ubicación, contacto, evento de otra plataforma, saliente, sin cuenta
-- [ ] T010 `whatsapp-zernio/ingest.ts`: normalizador puro y `processZernioWhatsappEvent`
-- [ ] T011 `remote-media.ts` y `descarga-remota.ts`: origen `zernio-whatsapp`, credencial solo a `zernio.com`, sin redirecciones a otro host, `sha256`
-- [ ] T012 Pruebas de la descarga: 401 sin llave, host ajeno, redirección fuera de `zernio.com`, `sha256` que no coincide, tope por tipo
-- [ ] T013 Contacto con `origin: "other"` no cambia el teléfono del remitente
+- [x] T009 Pruebas del normalizador con los eventos reales del sandbox (sin datos personales): texto, botón, cita, imagen, nota de voz, documento, ubicación, contacto, evento de otra plataforma, saliente, sin cuenta
+- [x] T010 `whatsapp-zernio/ingest.ts`: normalizador puro y `processZernioWhatsappEvent`
+- [x] T011 `remote-media.ts` y `descarga-remota.ts`: origen `zernio-whatsapp`, credencial solo a `zernio.com`, sin redirecciones a otro host, `sha256`
+- [x] T012 Pruebas de la descarga: 401 sin llave, host ajeno, redirección fuera de `zernio.com`, `sha256` que no coincide, tope por tipo
+- [x] T013 Contacto con `origin: "other"` no cambia el teléfono del remitente
 
 ### Estados
 
-- [ ] T014 Conversión de `message.sent|delivered|read|failed` a `WebhookStatus` y `applyStatusUpdate`
-- [ ] T015 Pruebas: orden aleatorio de acuses, `delivered` tardío tras `read`, `message.sent` propio no duplica, `failed` con código traducido
+- [x] T014 Conversión de `message.sent|delivered|read|failed` a `WebhookStatus` y `applyStatusUpdate`
+- [x] T015 Pruebas: orden aleatorio de acuses, `delivered` tardío tras `read`, `message.sent` propio no duplica, `failed` con código traducido
 
 ### Salida
 

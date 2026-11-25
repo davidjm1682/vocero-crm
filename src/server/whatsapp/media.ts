@@ -9,6 +9,7 @@ import {
 } from "@/server/whatsapp/credentials";
 import { isForbiddenUploadMime } from "@/server/whatsapp/media-headers";
 import { descargarAdjuntoRemoto } from "@/server/inbox/descarga-remota";
+import { getWhatsappZernioCredentialsByOrg } from "@/server/whatsapp-zernio/credentials";
 import {
   origenOf,
   sourceUrlOf,
@@ -240,7 +241,14 @@ export async function ensureAssetAvailable(
   } else {
     const tope = TOPE_ADJUNTO_REMOTO[asset.kind as KindRemoto] ?? TOPE_ADJUNTO_REMOTO.document;
     const origen = origenOf(asset.payload);
-    descargar = () => descargarAdjuntoRemoto(sourceUrl!, origen, tope);
+    // 080: el adjunto de WhatsApp por Zernio exige la llave de ESA organización.
+    let token: string | null = null;
+    if (origen === "zernio-whatsapp") {
+      token = (await getWhatsappZernioCredentialsByOrg(organizationId))?.token ?? null;
+      if (!token) return null;
+    }
+    const sha256 = (asset.payload as { sha256?: string } | null)?.sha256 ?? null;
+    descargar = () => descargarAdjuntoRemoto(sourceUrl!, origen, tope, { token, sha256 });
   }
 
   try {

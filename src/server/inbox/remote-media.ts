@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { BlockList, isIP } from "node:net";
 
 /**
@@ -13,8 +14,13 @@ import { BlockList, isIP } from "node:net";
  * un mensaje se vuelve qué mensaje de la bandeja y qué URL se puede bajar.
  */
 
-/** De dónde llegó el adjunto: decide qué hosts se aceptan al bajarlo. */
-export type OrigenRemoto = "meta" | "zernio";
+/**
+ * De dónde llegó el adjunto: decide qué hosts se aceptan al bajarlo.
+ *
+ * 080: `zernio-whatsapp` es el único que NO trae la firma en la URL: Zernio
+ * responde 401 sin la llave, así que se baja con ella y solo desde `zernio.com`.
+ */
+export type OrigenRemoto = "meta" | "zernio" | "zernio-whatsapp";
 
 /** Tipos de adjunto que tienen archivo y se copian. */
 export type KindRemoto = "image" | "video" | "audio" | "document" | "sticker";
@@ -30,6 +36,10 @@ export type RemoteAttachment = {
     url?: string;
     sticker_id?: number;
     title?: string;
+    /** 080 — Lo que Zernio dice del archivo de WhatsApp. */
+    mimeType?: string;
+    sha256?: string;
+    filename?: string;
   } | null;
 };
 
@@ -38,6 +48,10 @@ export type RemoteMedia = {
   kind: KindRemoto;
   sourceUrl: string;
   origen: OrigenRemoto;
+  /** 080 — Datos que Zernio declara del archivo (WhatsApp). */
+  mimeType?: string | null;
+  sha256?: string | null;
+  fileName?: string | null;
 };
 
 /** Una parte del mensaje original, lista para la ingesta. */
@@ -109,7 +123,19 @@ export function splitInbound(
     const kind = att.payload?.sticker_id ? "sticker" : KIND[tipo];
 
     if (kind && url) {
-      parts.push({ type: kind, text: null, media: { kind, sourceUrl: url, origen } });
+      const declarado =
+        origen === "zernio-whatsapp"
+          ? {
+              mimeType: att.payload?.mimeType ?? null,
+              sha256: att.payload?.sha256 ?? null,
+              fileName: att.payload?.filename ?? null,
+            }
+          : {};
+      parts.push({
+        type: kind,
+        text: null,
+        media: { kind, sourceUrl: url, origen, ...declarado },
+      });
     } else if (COMPARTIDOS[tipo]) {
       const titulo = att.payload?.title?.trim();
       const linea = [COMPARTIDOS[tipo], titulo].filter(Boolean).join(": ");
@@ -153,7 +179,7 @@ export function sourceUrlOf(payload: unknown): string | null {
 /** El origen guardado junto a la URL. Sin él, el más estricto: Meta. */
 export function origenOf(payload: unknown): OrigenRemoto {
   const o = payload && typeof payload === "object" ? (payload as { origen?: unknown }).origen : null;
-  return o === "zernio" ? "zernio" : "meta";
+  return o === "zernio" || o === "zernio-whatsapp" ? o : "meta";
 }
 
 /**
@@ -167,6 +193,7 @@ export function payloadPublico(payload: unknown): unknown {
   const resto: Record<string, unknown> = { ...(payload as Record<string, unknown>) };
   delete resto.sourceUrl;
   delete resto.origen;
+  delete resto.sha256;
   return Object.keys(resto).length ? resto : null;
 }
 
@@ -212,9 +239,41 @@ export function urlDeAdjuntoPermitida(
   if (origen === "meta") {
     return DOMINIOS_DE_META.some((d) => h === d || h.endsWith(`.${d}`));
   }
+  // 080: la llave de Zernio viaja en la petición; solo a Zernio, nunca a un CDN.
+  if (origen === "zernio-whatsapp") return h === "zernio.com" || h.endsWith(".zernio.com");
   if (isIP(h.replace(/^\[|\]$/g, "")) !== 0) return false;
   if (!h.includes(".")) return false;
   return !/(^|\.)(localhost|local|internal|lan|home|corp|intranet)$/.test(h);
+}
+
+/**
+ * 080 — La cabecera `Authorization` de una descarga: la llave de Zernio solo
+ * si el adjunto es de WhatsApp por Zernio Y la URL es de `zernio.com` (o del
+ * simulador, que `urlDeAdjuntoPermitida` ya habilitó). Cualquier otro caso no
+ * lleva nada: la llave no sale hacia un host que no sea de Zernio.
+ */
+export function autorizacionDeDescarga(
+  origen: OrigenRemoto,
+  url: string,
+  token: string | null | undefined,
+  origenMock: string | null = null
+): string | null {
+  if (origen !== "zernio-whatsapp" || !token) return null;
+  return urlDeAdjuntoPermitida(url, origen, origenMock) ? `Bearer ${token}` : null;
+}
+
+/**
+ * 080 — ¿El archivo bajado es el que Zernio declaró? Acepta el hash en hex o
+ * en base64 (el formato no está confirmado). Sin hash declarado no hay con qué
+ * comparar y se acepta.
+ */
+export function sha256Coincide(data: Buffer, esperado: string | null | undefined): boolean {
+  const declarado = esperado?.trim();
+  if (!declarado) return true;
+  const h = createHash("sha256").update(data);
+  const hex = h.copy().digest("hex");
+  const b64 = h.digest("base64");
+  return declarado.toLowerCase() === hex || declarado === b64;
 }
 
 /** Redes que nunca se piden desde el servidor (red interna, loopback, etc.). */

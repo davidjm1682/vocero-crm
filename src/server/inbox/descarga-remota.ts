@@ -4,7 +4,9 @@ import https from "node:https";
 import type { LookupFunction } from "node:net";
 import { isMockEnabled } from "@/lib/env";
 import {
+  autorizacionDeDescarga,
   ipPublica,
+  sha256Coincide,
   urlDeAdjuntoPermitida,
   type OrigenRemoto,
 } from "@/server/inbox/remote-media";
@@ -69,7 +71,13 @@ type Respuesta = {
   body: Buffer | null;
 };
 
-function pedir(url: URL, maxBytes: number, esMock: boolean, fin: number): Promise<Respuesta> {
+function pedir(
+  url: URL,
+  maxBytes: number,
+  esMock: boolean,
+  fin: number,
+  autorizacion: string | null = null
+): Promise<Respuesta> {
   return new Promise((resolve, reject) => {
     const restante = fin - Date.now();
     if (restante <= 0) return reject(new DescargaRemotaError("Se acabó el tiempo de descarga"));
@@ -79,7 +87,11 @@ function pedir(url: URL, maxBytes: number, esMock: boolean, fin: number): Promis
       {
         // El simulador vive en esta misma máquina; lo demás, solo a internet.
         ...(esMock ? {} : { lookup: lookupPublico }),
-        headers: { accept: "*/*", "user-agent": "Vocero-CRM" },
+        headers: {
+          accept: "*/*",
+          "user-agent": "Vocero-CRM",
+          ...(autorizacion ? { authorization: autorizacion } : {}),
+        },
       },
       (res) => {
         const status = res.statusCode ?? 0;
@@ -142,8 +154,17 @@ function pedir(url: URL, maxBytes: number, esMock: boolean, fin: number): Promis
 export async function descargarAdjuntoRemoto(
   url: string,
   origen: OrigenRemoto,
-  maxBytes: number
+  maxBytes: number,
+  /**
+   * 080 — `token`: la llave de Zernio de esa organización, para los adjuntos de
+   * WhatsApp por Zernio (que responden 401 sin ella). `sha256`: el hash que
+   * Zernio declaró; si el archivo no lo cumple, se descarta.
+   */
+  opts: { token?: string | null; sha256?: string | null } = {}
 ): Promise<{ data: Buffer; mimeType: string | null; fileSize: number }> {
+  if (origen === "zernio-whatsapp" && !opts.token) {
+    throw new DescargaRemotaError("Falta la llave de Zernio para bajar el adjunto");
+  }
   const origenMock = origenDelMock();
   const fin = Date.now() + TIEMPO_MS;
   let actual = url;
@@ -152,7 +173,14 @@ export async function descargarAdjuntoRemoto(
       throw new DescargaRemotaError("La URL del adjunto no es de un origen permitido", true);
     }
     const u = new URL(actual);
-    const res = await pedir(u, maxBytes, origenMock !== null && u.origin === origenMock, fin);
+    // La llave se decide en CADA salto: una redirección a otro host no la lleva.
+    const res = await pedir(
+      u,
+      maxBytes,
+      origenMock !== null && u.origin === origenMock,
+      fin,
+      autorizacionDeDescarga(origen, actual, opts.token, origenMock)
+    );
     if (res.status >= 300 && res.status < 400) {
       if (!res.location) throw new DescargaRemotaError("Redirección sin destino", true);
       actual = new URL(res.location, actual).toString();
@@ -166,6 +194,9 @@ export async function descargarAdjuntoRemoto(
       );
     }
     if (res.body.byteLength === 0) throw new DescargaRemotaError("El adjunto llegó vacío", true);
+    if (!sha256Coincide(res.body, opts.sha256)) {
+      throw new DescargaRemotaError("El adjunto no coincide con el hash que declaró Zernio", true);
+    }
     const mimeType = res.contentType?.split(";")[0]?.trim().toLowerCase() || null;
     return { data: res.body, mimeType, fileSize: res.body.byteLength };
   }
